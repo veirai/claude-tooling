@@ -1,6 +1,6 @@
 # claude-tooling
 
-Central source of truth for Claude Code plugins, skills, and session setup for the Lifvra ecosystem.
+Central source of truth for Claude Code plugins, skills, and session setup for the Veirai ecosystem.
 
 ## What's included
 
@@ -51,7 +51,7 @@ claude plugin install context7@context7-marketplace             --scope user
 
 Copy `configs/launcher-settings.json` to your project's `.claude/settings.json` (or merge the `hooks` block into your existing file). This hook runs on every session start and:
 
-1. Clones (or pulls) this repo to `/tmp/lifvra-claude-tooling`
+1. Clones (or pulls) this repo to `$HOME/.cache/claude-tooling` (or `$XDG_CACHE_HOME/claude-tooling`)
 2. Copies the latest scripts to `~/.claude/`
 3. Copies all skills to `~/.claude/skills/`
 4. Runs `session-start-plugins.sh` to ensure everything is installed

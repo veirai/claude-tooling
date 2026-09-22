@@ -1,4 +1,4 @@
-# Session Start — Lifvra
+# Session Start — Veirai
 
 Paste this at the top of every new Claude Code session.
 
@@ -17,7 +17,7 @@ Run all sub-steps in parallel.
 
 **claude-mem plugin context:**
 Call `mcp__plugin_claude-mem_mcp-search__session_start_context` with:
-- projects: "lifvra/hq,lifvra/web,lifvra/landing"
+- projects: "veirai/hq,veirai/web,veirai/landing"
 Report: what context was injected, or "first session / empty"
 
 **Cloud sync** (local sessions only): check `http://127.0.0.1:${CLAUDE_MEM_WORKER_PORT:-37700}/api/sync/status`
@@ -29,11 +29,11 @@ In remote sessions: N/A — git-backed backup loop handles both import (session 
 If the `─── SESSION-MEMORY.md ───` block appears in your context (injected by the SessionStart hook):
 → extract and summarize: locked decisions, active in-flight PRs, open human decisions, key system IDs.
 If NOT visible (hook failed or web/landing session):
-→ fetch immediately: `mcp__github__get_file_contents(owner:Lifvra, repo:hq, path:public/docs/shared-memory/SESSION-MEMORY.md, ref:refs/heads/main)` — do this before any other work.
+→ fetch immediately: `mcp__github__get_file_contents(owner:veirai, repo:hq, path:public/docs/shared-memory/SESSION-MEMORY.md, ref:refs/heads/main)` — do this before any other work.
 Report: 3–5 bullet summary of what's locked + what's active.
 
 **STATUS.md** (live ecosystem priority + status):
-Fetch: `mcp__github__get_file_contents(owner:Lifvra, repo:hq, path:public/docs/shared-memory/STATUS.md, ref:refs/heads/main)`
+Fetch: `mcp__github__get_file_contents(owner:veirai, repo:hq, path:public/docs/shared-memory/STATUS.md, ref:refs/heads/main)`
 Report: version number + last 2 changelog entries + any P0/P1 rows that are `🟡 pågår`.
 
 **Cross-session brain log** (may already be injected by hook under `─── Cross-session ───`):
@@ -43,7 +43,7 @@ If injected: note the entries. If not: no action needed (hook only runs when log
 > Write to SESSION-MEMORY.md IMMEDIATELY when: root cause confirmed · decision locked ·
 > key ID/state/ownership learned · work block done · ~60 min elapsed.
 > Mechanic: (a) get SHA → `mcp__github__get_file_contents(...SESSION-MEMORY.md, ref:refs/heads/main)`
->           (b) `mcp__github__create_or_update_file(owner:Lifvra, repo:hq, branch:main, sha:..., content:<full updated file>)`
+>           (b) `mcp__github__create_or_update_file(owner:veirai, repo:hq, branch:main, sha:..., content:<full updated file>)`
 > Re-fetch SESSION-MEMORY.md before each major new subtask.
 
 ## 3. MCPs
@@ -54,10 +54,10 @@ Confirm ALL of the following are present in the skill list. Missing = ❌ gap.
 
 **Plugin suites:** superpowers, claude-mem, understand-anything, code-review, context7
 **Skill suites:** gstack, task-observer
-**Lifvra workflow skills:** secret-detection, deploy, preview-testing,
+**Veirai workflow skills:** secret-detection, deploy, preview-testing,
 three-role-code-review, verify-before-claiming-done, pre-approve-architecture-check,
 test-driven-development, investigate-root-cause, internal-autoplan,
-independent-diff-review, lifvra-visual-review, service-index-lookup
+independent-diff-review, veirai-visual-review, service-index-lookup
 
 ## 5. Trio Coordination (read, don't act yet)
 Run these in parallel:
@@ -84,7 +84,7 @@ Output a single compact table:
 | MCPs | N/14 active | list any ❌ |
 | Plugin suites | ✅/❌ | superpowers, claude-mem, understand-anything, code-review, context7 |
 | Skill suites | ✅/❌ | gstack, task-observer |
-| Lifvra skills | N/12 present | list any ❌ missing |
+| Veirai skills | N/12 present | list any ❌ missing |
 | Intra-HQ claims | N claims | list scope+owner if any |
 | Trio ledger WIP | N rows (N stale) | flag stale rows |
 | Urgent items | N items | list if any |
@@ -105,7 +105,7 @@ Print this reminder table:
 | Debugging a non-obvious bug | `investigate-root-cause` |
 | Complex multi-step task needing a plan | `internal-autoplan` or `superpowers:writing-plans` |
 | Reviewing a diff independently | `independent-diff-review` |
-| UI/visual work touching Lifvra brand | `lifvra-visual-review` + `apple-design` |
+| UI/visual work touching Veirai brand | `veirai-visual-review` + `apple-design` |
 | Need to find an existing service/edge/tool | `service-index-lookup` |
 | Finding confirmed / decision locked / key info learned | Write to SESSION-MEMORY.md NOW (see mechanic in §2 above) |
 | ~60 min into session | Write SESSION-MEMORY.md checkpoint — don't wait until end |

@@ -23,14 +23,14 @@ Do not skip — even short sessions capture something worth preserving.
 
 Steps:
 (a) Get current SHA + content:
-    `mcp__github__get_file_contents(owner:Lifvra, repo:hq, path:public/docs/shared-memory/SESSION-MEMORY.md, ref:refs/heads/main)`
+    `mcp__github__get_file_contents(owner:veirai, repo:hq, path:public/docs/shared-memory/SESSION-MEMORY.md, ref:refs/heads/main)`
 (b) Add to the relevant sections:
     - **Locked Decisions:** any architectural/policy/direction choices made
     - **Key Findings & Learnings:** root causes confirmed, system behaviors verified, how things actually work
     - **Active Work:** update in-flight PR table — mark merged/closed, add new PRs
     - **Ecosystem Constants:** any new confirmed system IDs, states, or ownership
 (c) Write back:
-    `mcp__github__create_or_update_file(owner:Lifvra, repo:hq, branch:main, path:public/docs/shared-memory/SESSION-MEMORY.md, sha:<from step a>, content:<full updated file>)`
+    `mcp__github__create_or_update_file(owner:veirai, repo:hq, branch:main, path:public/docs/shared-memory/SESSION-MEMORY.md, sha:<from step a>, content:<full updated file>)`
 
 Report: what was written, which sections were updated.
 
