@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash -c 'REPO=/tmp/veirai-claude-tooling; if [ -d \"$REPO/.git\" ]; then git -C \"$REPO\" pull --depth 1 -q 2>/dev/null; else GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://github.com/veirai/claude-tooling \"$REPO\" 2>/dev/null; fi; cp \"$REPO/scripts/session-start-plugins.sh\" ~/.claude/session-start-plugins.sh 2>/dev/null; cp \"$REPO/scripts/test-plugins.sh\" ~/.claude/test-plugins.sh 2>/dev/null; chmod +x ~/.claude/session-start-plugins.sh ~/.claude/test-plugins.sh 2>/dev/null; cp -r \"$REPO/skills/\"* ~/.claude/skills/ 2>/dev/null; ~/.claude/session-start-plugins.sh 2>&1 || true'"
+            "command": "bash -c 'REPO=\"${XDG_CACHE_HOME:-$HOME/.cache}/claude-tooling\"; mkdir -p \"$REPO\"; if [ -d \"$REPO/.git\" ]; then git -C \"$REPO\" pull --depth 1 -q 2>/dev/null; else GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://github.com/veirai/claude-tooling \"$REPO\" 2>/dev/null; fi; cp \"$REPO/scripts/session-start-plugins.sh\" ~/.claude/session-start-plugins.sh 2>/dev/null; cp \"$REPO/scripts/test-plugins.sh\" ~/.claude/test-plugins.sh 2>/dev/null; chmod +x ~/.claude/session-start-plugins.sh ~/.claude/test-plugins.sh 2>/dev/null; cp -r \"$REPO/skills/\"* ~/.claude/skills/ 2>/dev/null; ~/.claude/session-start-plugins.sh 2>&1 || true'"
           }
         ]
       }
