@@ -39,9 +39,10 @@ Report: version number + last 2 changelog entries + any P0/P1 rows that are `�
 **Cross-session brain log** (may already be injected by hook under `─── Cross-session ───`):
 If injected: note the entries. If not: no action needed (hook only runs when log files exist this month).
 
-> **Continuous saving rule — read and internalize now:**
-> Write to SESSION-MEMORY.md IMMEDIATELY when: root cause confirmed · decision locked ·
-> key ID/state/ownership learned · work block done · ~60 min elapsed.
+> **Saving rule (Fredrik 2026-09-30) — read and internalize now:**
+> Write to SESSION-MEMORY.md only when a decision is locked, and once at session end.
+> Batch updates into one write; never write an unverified conclusion. Every write is a
+> commit to hq main that costs CI minutes (it drove ~half of Sept 2026's Actions usage).
 > Mechanic: (a) get SHA → `mcp__github__get_file_contents(...SESSION-MEMORY.md, ref:refs/heads/main)`
 >           (b) `mcp__github__create_or_update_file(owner:veirai, repo:hq, branch:main, sha:..., content:<full updated file>)`
 > Re-fetch SESSION-MEMORY.md before each major new subtask.
@@ -107,7 +108,7 @@ Print this reminder table:
 | Reviewing a diff independently | `independent-diff-review` |
 | UI/visual work touching Veirai brand | `veirai-visual-review` + `apple-design` |
 | Need to find an existing service/edge/tool | `service-index-lookup` |
-| Finding confirmed / decision locked / key info learned | Write to SESSION-MEMORY.md NOW (see mechanic in §2 above) |
-| ~60 min into session | Write SESSION-MEMORY.md checkpoint — don't wait until end |
-| After each push/merge/resolved decision | Update STATUS.md + COORDINATION.md if trio-scope. At session end: run `/session-wrap-up`. |
+| Decision locked | Write to SESSION-MEMORY.md (one batched commit, see §2) |
+| Long session about to be compressed | One batched SESSION-MEMORY.md checkpoint, not one write per finding |
+| Session end | Run `/session-wrap-up`: one batched update of SESSION-MEMORY.md, and STATUS.md + COORDINATION.md if trio-scope. |
 ```
