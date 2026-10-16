@@ -8,12 +8,23 @@ description: Full session startup sequence — installs plugins, reads canonical
 Run this full startup sequence and report a compact status table at the end.
 Run all independent steps in parallel.
 
+**After the move (2026-10-10/12) all three apps run on our own Supabase (org Veirai,
+Stockholm): Landing `uxssabiwybfdzjdiiewd`, HQ `kvzzftmdnonpzjvjkfwr`, Web
+`ovwioezbsqencnrplpck`.** Sofia/Lovable builds, deploys and operates nothing any more. The
+old Lovable projects are paused rollback copies with stale data, so never read state from
+them, and that includes the old `HQ`, `Landing` and `Web` connectors.
+
+## 0. Project threads (claude.ai Projects)
+Cloud threads start without the repos, so the SessionStart hook hasn't run yet. First
+attach `veirai/hq` (`add_repo`), clone it and call `register_repo_root`. The hook then
+installs the plugins and injects SESSION-MEMORY.md on the next turn.
+
 ## 1. Plugins
 Run `~/.claude/session-start-plugins.sh && ~/.claude/test-plugins.sh`
 Report: pass/fail + plugin count
 
-If the scripts don't exist (fresh container before the hook has run), use the
-manual fallback at the bottom of this file.
+If the scripts don't exist (fresh container before the hook has run), do step 0, or use
+the manual fallback at the bottom of this file.
 
 ## 2. Shared Brain (Memory) + Canonical State Read-In
 Run all sub-steps in parallel.
@@ -33,11 +44,15 @@ If the `─── SESSION-MEMORY.md ───` block appears in your context (in
 → extract and summarize: locked decisions, active in-flight PRs, open human decisions, key system IDs.
 If NOT visible (hook failed or web/landing session):
 → fetch immediately: `mcp__github__get_file_contents(owner:veirai, repo:hq, path:public/docs/shared-memory/SESSION-MEMORY.md, ref:refs/heads/main)` — do this before any other work.
+Read its "Current state" block first: it wins over older dated entries, and every
+"send to Sofia", "Lovable Publish" or `mcp__Lovable__query_database` line below it is history.
 Report: 3–5 bullet summary of what's locked + what's active.
 
-**STATUS.md** (live ecosystem priority + status):
+**STATUS.md** (ecosystem priority list):
 Fetch: `mcp__github__get_file_contents(owner:veirai, repo:hq, path:public/docs/shared-memory/STATUS.md, ref:refs/heads/main)`
-Report: version number + last 2 changelog entries + any P0/P1 rows that are `🟡 pågår`.
+Report: version number + last changelog date. If it still carries the "outdated since the
+move" banner or lists Sofia deploy queues, report ⚠️ outdated and don't treat its 🟡 rows as
+live work: open `larm`/`beslut` issues (§5) are the live list.
 
 **Cross-session brain log** (may already be injected by hook under `─── Cross-session ───`):
 If injected: note the entries. If not: no action needed (hook only runs when log files exist this month).
@@ -51,29 +66,41 @@ If injected: note the entries. If not: no action needed (hook only runs when log
 > Re-fetch SESSION-MEMORY.md before each major new subtask.
 
 ## 3. MCPs
-Call `ListConnectors` — list each as ✅ connected+enabled, ⚠️ enabled but unknown state, ❌ disabled in chat
+Call `ListConnectors` — list each as ✅ connected+enabled, ⚠️ enabled but unknown state, ❌ disabled in chat.
+
+Expected for Veirai work: **HQ (ny)**, **Landing (ny)**, GitHub, Supabase, Vercel, Sentry,
+PostHog, Resend, Context7. Mark the old **HQ**, **Landing** and **Web** connectors as
+"old (Lovable copy)" instead of ✅ or ❌: they answer, but with data frozen at the move.
+Lovable is only needed for the AI gateway and the rollback copies until hq#766 closes them.
 
 ## 4. Skills — full inventory check
 Confirm ALL of the following are present in the skill list. Missing = ❌ gap.
 
-**Plugin suites:** superpowers, claude-mem, understand-anything, code-review, context7
+**Plugin suites:** superpowers, claude-mem, understand-anything, code-review, context7, code-simplifier
 **Skill suites:** gstack, task-observer
-**Veirai workflow skills:** secret-detection, deploy, preview-testing,
+**Veirai workflow skills** (from `hq/.claude/skills`): secret-detection,
 three-role-code-review, verify-before-claiming-done, pre-approve-architecture-check,
 test-driven-development, investigate-root-cause, internal-autoplan,
-independent-diff-review, veirai-visual-review, service-index-lookup
+independent-diff-review, veirai-visual-review, service-index-lookup,
+decision-queue, guided-handoff, create-migration
 
 ## 5. Trio Coordination (read, don't act yet)
 Run these in parallel:
-- `mcp__HQ__get_coordination_ledger` — active work claims across trio; flag any WIP row older than 14 days as ⚠️ stale
-- `mcp__HQ__list_active_work_claims` — intra-HQ session claims (§4.1)
-- `mcp__HQ__get_urgent_triage` — anything urgent right now
-- `mcp__HQ__get_ecosystem_status` — live health of HQ/Web/Landing
-- `mcp__HQ__list_open_deliberations` — open Council decisions needing human
+- `mcp__HQ_ny__get_coordination_ledger` — active work claims across trio; flag any WIP row older than 14 days as ⚠️ stale
+- `mcp__HQ_ny__list_active_work_claims` — intra-HQ session claims (§4.1)
+- `mcp__HQ_ny__get_urgent_triage` — anything urgent right now
+- `mcp__HQ_ny__get_ecosystem_status` — live health of HQ/Web/Landing
+- Open `larm` and `beslut` issues in veirai/hq (the one place for alarms and decisions):
+  `gh api "repos/veirai/hq/issues?labels=larm&state=open"` and the same with `labels=beslut`
+  (REST only; GraphQL is blocked in cloud sessions)
 - `mcp__Claude_Code_Remote__list_sessions` (mine: true) — detect parallel sessions in the same repos; include task_summary if present
 
-Report: summarize active claims, conflicts, stale ledger rows, urgent items,
-open deliberations, and parallel sessions that could cause overlap.
+Council runs on demand only (paused 2026-09-24), so open deliberations are no longer a
+startup check. If HQ (ny) isn't connected, say so in the table and use the issue lists;
+never fall back to the old `mcp__HQ__*` tools.
+
+Report: summarize active claims, conflicts, stale ledger rows, alarms, open decisions,
+and parallel sessions that could cause overlap.
 
 ## 6. Status Report
 Output a single compact table:
@@ -84,15 +111,15 @@ Output a single compact table:
 | claude-mem | ✅/empty | what context was injected |
 | Cloud sync | ✅/⚠️/N/A | configured+reachable / warning / remote session |
 | SESSION-MEMORY | ✅/⚠️ | injected by hook / manually fetched / not found |
-| STATUS.md | ✅/⚠️ | vX.XX loaded, last entry date |
-| MCPs | N/14 active | list any ❌ |
-| Plugin suites | ✅/❌ | superpowers, claude-mem, understand-anything, code-review, context7 |
+| STATUS.md | ✅/⚠️ | vX.XX loaded, last entry date, outdated banner? |
+| MCPs | N active | list any ❌ and any old Lovable-era connectors |
+| Plugin suites | ✅/❌ | superpowers, claude-mem, understand-anything, code-review, context7, code-simplifier |
 | Skill suites | ✅/❌ | gstack, task-observer |
-| Veirai skills | N/12 present | list any ❌ missing |
+| Veirai skills | N/13 present | list any ❌ missing |
 | Intra-HQ claims | N claims | list scope+owner if any |
 | Trio ledger WIP | N rows (N stale) | flag stale rows |
-| Urgent items | N items | list if any |
-| Open deliberations | N open | awaiting_decision / awaiting_outcome / in_progress |
+| Alarms (`larm`) | N open | list if any |
+| Decisions (`beslut`) | N open | list with age |
 | Parallel sessions | N running | list titles + task_summary for overlap |
 
 After the table: one-line summary of what to be aware of before starting work today.
@@ -109,8 +136,15 @@ Print this reminder table:
 | Debugging a non-obvious bug | `investigate-root-cause` |
 | Complex multi-step task needing a plan | `internal-autoplan` or `superpowers:writing-plans` |
 | Reviewing a diff independently | `independent-diff-review` |
+| Code written, before review | `simplify` (code-simplifier) |
 | UI/visual work touching Veirai brand | `veirai-visual-review` + `apple-design` |
 | Need to find an existing service/edge/tool | `service-index-lookup` |
+| New database migration | `create-migration` |
+| Shipping a change | Draft PR → CI green → Fredrik writes "merge". Backend deploys run from GitHub workflows (HQ `supabase-deploy.yml`, Web release train, Landing `supabase-deploy.yml`). Never a Sofia request or Lovable Publish. |
+| Reading live data | HQ: `mcp__Supabase__execute_sql` on `kvzzftmdnonpzjvjkfwr`. Web: only with Fredrik's explicit ok in the thread. |
+| Need a real decision from Fredrik | `decision-queue` (`beslut` issue) |
+| Fredrik has to click something in a console | `guided-handoff` |
+| Adding or moving a vendor/service | Update `vendors.json` in the same PR |
 | Decision locked | Write to SESSION-MEMORY.md (one batched commit, see §2) |
 | Long session about to be compressed | One batched SESSION-MEMORY.md checkpoint, not one write per finding |
 | Session end | Run `/session-wrap-up`: one batched update of SESSION-MEMORY.md, and STATUS.md + COORDINATION.md if trio-scope. |
@@ -134,6 +168,7 @@ claude plugin marketplace add anthropics/claude-plugins-official || true
 claude plugin marketplace add "Egonex-AI/Understand-Anything#v2.9.0" || true
 claude plugin marketplace add "thedotmack/claude-mem#v13.13.1" || true
 claude plugin marketplace add upstash/context7 || true
+claude plugin marketplace add anthropics/knowledge-work-plugins || true
 ```
 
 ### Install plugins
@@ -145,6 +180,8 @@ claude plugin install superpowers@claude-plugins-official        --scope user
 claude plugin install understand-anything@understand-anything   --scope user
 claude plugin install claude-mem@thedotmack                     --scope user
 claude plugin install context7@context7-marketplace             --scope user
+claude plugin install security-guidance@knowledge-work-plugins  --scope user
+claude plugin install tinyfish@knowledge-work-plugins           --scope user
 ```
 
 ### Install skill suites
