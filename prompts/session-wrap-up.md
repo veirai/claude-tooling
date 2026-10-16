@@ -48,10 +48,11 @@ If work touched trio-scope (shared-memory docs, contracts, brand, skills,
 `shared_signals` types, or backend functions/migrations):
 - Move completed WIP rows from §2 → §3 in
   `hq/public/docs/shared-memory/COORDINATION.md` (commit + push to hq main directly)
-- Add a new §2 row if a handoff is pending (e.g. Sofia needs to Publish)
+- Add a new §2 row if a handoff is pending (e.g. a merged PR whose deploy run
+  hasn't gone green yet)
 - Bump version header (v1.XX → v1.XX+1) and last-updated date
-- If a Lovable publish is required, call `mcp__Lovable__send_message` to
-  the relevant project with a handoff note per `sofia-github-loop.md §10.1`
+- Since the move to own Supabase (2026-10-10–12) nothing is published via
+  Lovable/Sofia: deploys run in GitHub Actions and Vercel
 
 If work was hq-only (skills, hooks, tooling — not trio-scope): add a §3 wrap-up row
 only (no §2 changes needed), still bump version.
