@@ -20,19 +20,35 @@ attach `veirai/hq` (`add_repo`), clone it and call `register_repo_root`. The hoo
 installs the plugins and injects SESSION-MEMORY.md on the next turn.
 
 ## 1. Plugins
-Run `~/.claude/session-start-plugins.sh && ~/.claude/test-plugins.sh`
-Report: pass/fail + plugin count
+Run the canonical installer from GitHub. It works whatever folder the session started in
+(a single repo or the whole workspace, where no repo's SessionStart hook runs), it is
+idempotent, and it ends by running `test-plugins.sh`:
 
-If the scripts don't exist (fresh container before the hook has run), do step 0, or use
-the manual fallback at the bottom of this file.
+```bash
+D=$(mktemp -d); B=https://raw.githubusercontent.com/veirai/claude-tooling/main/scripts
+curl -fsSL "$B/session-start-plugins.sh" -o "$D/session-start-plugins.sh" \
+  && curl -fsSL "$B/test-plugins.sh" -o "$D/test-plugins.sh" \
+  && bash "$D/session-start-plugins.sh"
+```
+
+Newly installed plugins load into the running session within a few seconds. Then confirm
+they actually loaded, not just installed: the skill list must show `superpowers:*`,
+`claude-mem:*`, `understand-anything:*`, `tinyfish:*` and `gstack`, and the agent list
+`understand-anything:*` agents.
+Report: the `OK:`/`MISSING` line from the test + which plugin skills are visible.
+If the download fails, use the manual fallback at the bottom of this file.
 
 ## 2. Shared Brain (Memory) + Canonical State Read-In
 Run all sub-steps in parallel.
 
 **claude-mem plugin context:**
 Call `mcp__plugin_claude-mem_mcp-search__session_start_context` with:
-- projects: "veirai/hq,veirai/web,veirai/landing"
-Report: what context was injected, or "first session / empty"
+- projects: "hq,landing,user,web" (claude-mem names projects after the folder a session ran
+  in: `user` is a session opened over the whole workspace; `veirai/hq`-style names return nothing)
+Report: how many observations and from which dates, or "empty".
+If it says the project has no memory, the start hook's restore probably lost the race against
+claude-mem's database. From a web checkout run `bash scripts/mem-backup-import.sh`, then call
+the tool again. Report ⚠️ if it's still empty after that, never a silent "first session"
 
 **Cloud sync** (local sessions only): check `http://127.0.0.1:${CLAUDE_MEM_WORKER_PORT:-37700}/api/sync/status`
 — report configured+reachable ✅ or warn ⚠️ to run `claude-mem:cloud-sync`.
@@ -72,11 +88,15 @@ Expected for Veirai work: **HQ (ny)**, **Landing (ny)**, GitHub, Supabase, Verce
 PostHog, Resend, Context7. Mark the old **HQ**, **Landing** and **Web** connectors as
 "old (Lovable copy)" instead of ✅ or ❌: they answer, but with data frozen at the move.
 Lovable is only needed for the AI gateway and the rollback copies until hq#766 closes them.
+In cloud sessions the context7 *plugin's* own MCP server (`plugin:context7:context7`) can't
+get through the network proxy; the claude.ai Context7 connector (`mcp__Context7__*`) is the
+working path there, so report the plugin server as ⚠️ only if that connector is missing too.
 
 ## 4. Skills — full inventory check
 Confirm ALL of the following are present in the skill list. Missing = ❌ gap.
 
-**Plugin suites:** superpowers, claude-mem, understand-anything, code-review, context7, code-simplifier
+**Plugin suites:** superpowers, claude-mem, understand-anything, code-review, context7, code-simplifier,
+claude-code-setup, security-guidance, tinyfish
 **Skill suites:** gstack, task-observer
 **Veirai workflow skills** (from `hq/.claude/skills`): secret-detection,
 three-role-code-review, verify-before-claiming-done, pre-approve-architecture-check,
@@ -93,7 +113,7 @@ Run these in parallel:
 - Open `larm` and `beslut` issues in veirai/hq (the one place for alarms and decisions):
   `gh api "repos/veirai/hq/issues?labels=larm&state=open"` and the same with `labels=beslut`
   (REST only; GraphQL is blocked in cloud sessions)
-- `mcp__Claude_Code_Remote__list_sessions` (mine: true) — detect parallel sessions in the same repos; include task_summary if present
+- `mcp__claude-code-remote__list_sessions` (mine: true) — detect parallel sessions in the same repos; include task_summary if present
 
 Council runs on demand only (paused 2026-09-24), so open deliberations are no longer a
 startup check. If HQ (ny) isn't connected, say so in the table and use the issue lists;
@@ -113,7 +133,7 @@ Output a single compact table:
 | SESSION-MEMORY | ✅/⚠️ | injected by hook / manually fetched / not found |
 | STATUS.md | ✅/⚠️ | vX.XX loaded, last entry date, outdated banner? |
 | MCPs | N active | list any ❌ and any old Lovable-era connectors |
-| Plugin suites | ✅/❌ | superpowers, claude-mem, understand-anything, code-review, context7, code-simplifier |
+| Plugin suites | ✅/❌ | superpowers, claude-mem, understand-anything, code-review, context7, code-simplifier, claude-code-setup, security-guidance, tinyfish |
 | Skill suites | ✅/❌ | gstack, task-observer |
 | Veirai skills | N/13 present | list any ❌ missing |
 | Intra-HQ claims | N claims | list scope+owner if any |
@@ -199,6 +219,8 @@ fi
 
 ## Source of truth
 
-Scripts live in `veirai/claude-tooling` — keep them in sync when adding new
-plugins. SessionStart hook in `launcher-settings.json` runs
-`session-start-plugins.sh` automatically on every new session.
+Scripts live in `veirai/claude-tooling`. When adding a plugin, update the install list
+in `scripts/session-start-plugins.sh`, `EXPECTED_PLUGINS` in `scripts/test-plugins.sh`,
+`enabledPlugins` in each repo's `.claude/settings.json`, and the lists in this file.
+Each repo's SessionStart hook runs the installer when a session opens inside that repo;
+a session opened over the whole workspace runs no repo hook, which is why step 1 runs it.

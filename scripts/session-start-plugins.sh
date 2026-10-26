@@ -91,6 +91,29 @@ else
   log "task-observer already present"
 fi
 
+# ── CLAUDE-TOOLING SKILLS + LOCAL COPIES ──────────────────────────────────────
+# Puts activate-plugins and session-wrap-up in ~/.claude/skills, and this script
+# plus test-plugins.sh in ~/.claude/, whatever folder the session started in.
+# From a claude-tooling checkout the files sit next to this script; from the
+# thin wrappers in hq/landing/web (which run a temp copy) they're downloaded.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+RAW="https://raw.githubusercontent.com/veirai/claude-tooling/main"
+for skill in activate-plugins session-wrap-up; do
+  mkdir -p "$HOME/.claude/skills/$skill"
+  if [ -f "$SCRIPT_DIR/../skills/$skill/SKILL.md" ]; then
+    cp "$SCRIPT_DIR/../skills/$skill/SKILL.md" "$HOME/.claude/skills/$skill/SKILL.md"
+  else
+    curl -fsSL "$RAW/skills/$skill/SKILL.md" -o "$HOME/.claude/skills/$skill/SKILL.md.tmp" \
+      && mv "$HOME/.claude/skills/$skill/SKILL.md.tmp" "$HOME/.claude/skills/$skill/SKILL.md" \
+      || log "WARNING: could not fetch skill $skill"
+  fi
+done
+for f in session-start-plugins.sh test-plugins.sh; do
+  if [ "$SCRIPT_DIR/$f" != "$HOME/.claude/$f" ]; then
+    cp "$SCRIPT_DIR/$f" "$HOME/.claude/$f" 2>/dev/null && chmod +x "$HOME/.claude/$f"
+  fi
+done
+
 # ── VERIFY ────────────────────────────────────────────────────────────────────
 log "Running verification..."
 "$(dirname "$0")/test-plugins.sh" && log "All checks passed." || log "WARNING: Some checks failed — see above."
