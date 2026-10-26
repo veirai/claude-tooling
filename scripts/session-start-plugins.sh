@@ -48,48 +48,32 @@ claude plugin install security-guidance@knowledge-work-plugins        --scope us
 claude plugin install tinyfish@knowledge-work-plugins                 --scope user 2>/dev/null || true
 
 # ── SKILL SUITES (git-cloned, not marketplace plugins) ────────────────────────
-# SECURITY: these are third-party repos cloned from HEAD. Each is pinned to its
-# first-install SHA via verify_and_pin_sha(). SHA files live in
-# ~/.claude/skills/.{name}.sha. Upgrade path: delete .sha, reinstall, validate.
+# SECURITY: gstack is a third-party repo. It is pinned to an exact commit HERE,
+# in the script, because a pin file in ~/.claude dies with the container: every
+# cloud session used to clone HEAD unchecked. To upgrade: review the new commit
+# upstream, then change GSTACK_SHA in a PR (see UPSTREAM.md).
+GSTACK_SHA="2f8ba2a665a22a5cc2c11337059ee8fe22df4773"
 GSTACK_DIR="$HOME/.claude/skills/gstack"
-GSTACK_PIN="$HOME/.claude/skills/.gstack.sha"
-if [ ! -f "$GSTACK_DIR/SKILL.md" ]; then
-  log "Installing gstack skill suite..."
-  rm -rf "${GSTACK_DIR}.tmp"
-  GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 \
-    https://github.com/garrytan/gstack "${GSTACK_DIR}.tmp" 2>/dev/null \
+CURRENT_SHA=$(git -C "$GSTACK_DIR" rev-parse HEAD 2>/dev/null || echo "none")
+if [ "$CURRENT_SHA" != "$GSTACK_SHA" ]; then
+  log "Installing gstack at pinned ${GSTACK_SHA:0:12} (found: ${CURRENT_SHA:0:12})..."
+  rm -rf "$GSTACK_DIR" "${GSTACK_DIR}.tmp"
+  mkdir -p "${GSTACK_DIR}.tmp" \
+    && git -C "${GSTACK_DIR}.tmp" init -q \
+    && git -C "${GSTACK_DIR}.tmp" remote add origin https://github.com/garrytan/gstack \
+    && GIT_LFS_SKIP_SMUDGE=1 git -C "${GSTACK_DIR}.tmp" fetch -q --depth 1 origin "$GSTACK_SHA" \
+    && git -C "${GSTACK_DIR}.tmp" checkout -q FETCH_HEAD \
     && mv "${GSTACK_DIR}.tmp" "$GSTACK_DIR" \
-    && verify_and_pin_sha "$GSTACK_DIR" "gstack" "$GSTACK_PIN" \
     && log "gstack installed" \
-    || log "WARNING: gstack clone failed"
+    || log "WARNING: gstack install failed"
 else
-  CURRENT_SHA=$(git -C "$GSTACK_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
-  PINNED_SHA=$(cat "$GSTACK_PIN" 2>/dev/null || echo "")
-  if [ -n "$PINNED_SHA" ] && [ "$PINNED_SHA" != "$CURRENT_SHA" ]; then
-    log "SECURITY WARNING: gstack SHA mismatch — expected $PINNED_SHA, got $CURRENT_SHA"
-  fi
-  log "gstack already present ($(cat "$GSTACK_DIR/VERSION" 2>/dev/null || echo 'version unknown'))"
+  log "gstack already at pinned ${GSTACK_SHA:0:12}"
 fi
 
-TASK_OBSERVER_DIR="$HOME/.claude/skills/task-observer"
-TASK_OBSERVER_PIN="$HOME/.claude/skills/.task-observer.sha"
-if [ ! -f "$TASK_OBSERVER_DIR/SKILL.md" ]; then
-  log "Installing task-observer skill..."
-  rm -rf "${TASK_OBSERVER_DIR}.tmp"
-  GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 \
-    https://github.com/rebelytics/one-skill-to-rule-them-all "${TASK_OBSERVER_DIR}.tmp" 2>/dev/null \
-    && mv "${TASK_OBSERVER_DIR}.tmp" "$TASK_OBSERVER_DIR" \
-    && verify_and_pin_sha "$TASK_OBSERVER_DIR" "task-observer" "$TASK_OBSERVER_PIN" \
-    && log "task-observer installed" \
-    || log "WARNING: task-observer clone failed"
-else
-  CURRENT_SHA=$(git -C "$TASK_OBSERVER_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
-  PINNED_SHA=$(cat "$TASK_OBSERVER_PIN" 2>/dev/null || echo "")
-  if [ -n "$PINNED_SHA" ] && [ "$PINNED_SHA" != "$CURRENT_SHA" ]; then
-    log "SECURITY WARNING: task-observer SHA mismatch — expected $PINNED_SHA, got $CURRENT_SHA"
-  fi
-  log "task-observer already present"
-fi
+# task-observer was removed (Fredrik 2026-10-26): its log lived in the container
+# and never survived a session. The container image may still ship a copy, so
+# take it out; skill corrections are proposed at wrap-up instead.
+rm -rf "$HOME/.claude/skills/task-observer" "$HOME/.claude/skills/.task-observer.sha"
 
 # ── CLAUDE-TOOLING SKILLS + LOCAL COPIES ──────────────────────────────────────
 # Puts activate-plugins and session-wrap-up in ~/.claude/skills, and this script

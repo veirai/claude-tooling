@@ -48,7 +48,10 @@ Call `mcp__plugin_claude-mem_mcp-search__session_start_context` with:
 Report: how many observations and from which dates, or "empty".
 If it says the project has no memory, the start hook's restore probably lost the race against
 claude-mem's database. From a web checkout run `bash scripts/mem-backup-import.sh`, then call
-the tool again. Report ⚠️ if it's still empty after that, never a silent "first session"
+the tool again. Report ⚠️ if it's still empty after that, never a silent "first session".
+Also report how old the backup is: `git -C /home/user/web fetch -q origin claude-mem-backup &&
+git -C /home/user/web log -1 --format=%cr origin/claude-mem-backup`. Older than a day while
+sessions have been working = ⚠️ (hq's nightly `memory-health` check will be red too).
 
 **Cloud sync** (local sessions only): check `http://127.0.0.1:${CLAUDE_MEM_WORKER_PORT:-37700}/api/sync/status`
 — report configured+reachable ✅ or warn ⚠️ to run `claude-mem:cloud-sync`.
@@ -97,10 +100,10 @@ Confirm ALL of the following are present in the skill list. Missing = ❌ gap.
 
 **Plugin suites:** superpowers, claude-mem, understand-anything, code-review, context7, code-simplifier,
 claude-code-setup, security-guidance, tinyfish
-**Skill suites:** gstack, task-observer
+**Skill suites:** gstack
 **Veirai workflow skills** (from `hq/.claude/skills`): secret-detection,
 three-role-code-review, verify-before-claiming-done, pre-approve-architecture-check,
-test-driven-development, investigate-root-cause, internal-autoplan,
+investigate-root-cause, internal-autoplan,
 independent-diff-review, veirai-visual-review, service-index-lookup,
 decision-queue, guided-handoff, create-migration
 
@@ -128,14 +131,14 @@ Output a single compact table:
 | Check | Status | Notes |
 |---|---|---|
 | Plugins | ✅/❌ | N/9 plugins |
-| claude-mem | ✅/empty | what context was injected |
+| claude-mem | ✅/⚠️ | observations injected + backup age |
 | Cloud sync | ✅/⚠️/N/A | configured+reachable / warning / remote session |
 | SESSION-MEMORY | ✅/⚠️ | injected by hook / manually fetched / not found |
 | STATUS.md | ✅/⚠️ | vX.XX loaded, last entry date, outdated banner? |
 | MCPs | N active | list any ❌ and any old Lovable-era connectors |
 | Plugin suites | ✅/❌ | superpowers, claude-mem, understand-anything, code-review, context7, code-simplifier, claude-code-setup, security-guidance, tinyfish |
-| Skill suites | ✅/❌ | gstack, task-observer |
-| Veirai skills | N/13 present | list any ❌ missing |
+| Skill suites | ✅/❌ | gstack |
+| Veirai skills | N/12 present | list any ❌ missing |
 | Intra-HQ claims | N claims | list scope+owner if any |
 | Trio ledger WIP | N rows (N stale) | flag stale rows |
 | Alarms (`larm`) | N open | list if any |
@@ -149,7 +152,7 @@ Print this reminder table:
 
 | Situation | Invoke |
 |---|---|
-| Designing new test coverage or writing tests | `test-driven-development` or `superpowers:test-driven-development` |
+| Designing new test coverage or writing tests | `superpowers:test-driven-development` |
 | PR with architectural scope (new edge, schema, contract, shared signal type) | `three-role-code-review` |
 | Before merging any PR you own | `verify-before-claiming-done` |
 | Before implementing a new feature or integration | `pre-approve-architecture-check` |
@@ -169,14 +172,9 @@ Print this reminder table:
 | Long session about to be compressed | One batched SESSION-MEMORY.md checkpoint, not one write per finding |
 | Session end | Run `/session-wrap-up`: one batched update of SESSION-MEMORY.md, and STATUS.md + COORDINATION.md if trio-scope. |
 
-At the start of any task-oriented session — any interaction where you will
-use tools and produce deliverables — invoke the task-observer skill before
-beginning work. This ensures skill improvement opportunities are captured
-throughout the session.
-
-/task-observer
-
-use relevant skills
+Where a superpowers skill and a Veirai skill cover the same step, the Veirai one wins
+(the "Plugin skills vs Veirai skills" rule in each repo's CLAUDE.md). Skill corrections
+from the session are proposed at wrap-up (`session-wrap-up` step 4b).
 
 ---
 
@@ -209,11 +207,6 @@ claude plugin install tinyfish@knowledge-work-plugins           --scope user
 if [ ! -f ~/.claude/skills/gstack/SKILL.md ]; then
   GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 \
     https://github.com/garrytan/gstack ~/.claude/skills/gstack
-fi
-
-if [ ! -f ~/.claude/skills/task-observer/SKILL.md ]; then
-  GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 \
-    https://github.com/rebelytics/one-skill-to-rule-them-all ~/.claude/skills/task-observer
 fi
 ```
 

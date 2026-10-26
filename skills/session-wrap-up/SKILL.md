@@ -8,8 +8,8 @@ description: End-of-session wrap-up sequence — flush to SESSION-MEMORY.md, rel
 Run independent steps in parallel where possible.
 
 ## 1. Release Work Claims
-Call `mcp__HQ__list_active_work_claims` — for any claim this session owns,
-call `mcp__HQ__release_work_claim` to free it.
+Call `mcp__HQ_ny__list_active_work_claims` — for any claim this session owns,
+call `mcp__HQ_ny__release_work_claim` to free it.
 
 ## 2. Open PRs — Subscribe & Hand Off
 For any PR opened this session:
@@ -43,6 +43,26 @@ pattern or decision established this session. Log to claude-mem:
 - Any coordination patterns that worked or caused friction
 - Skills invoked and whether they helped — note any gaps
 
+Then back up claude-mem, so the next session (a fresh container) can restore it:
+`bash /home/user/web/scripts/mem-backup-export.sh`
+Report the `Pushed N observations` line. If it says the push failed or the worker
+was unreachable, report ⚠️ with that line, never "synced". Until 2026-10-26 this export
+only ran on a clean session end, which cloud sessions rarely get, and the backup sat
+still from 2026-08-26 unnoticed; hq's nightly `memory-health` check now goes red when it
+stops.
+
+## 4b. Skill improvements
+Look back at the session: did Fredrik correct how a skill worked, did a skill give
+wrong or outdated instructions, or did the same manual workaround come up twice?
+For each one, propose the change where it gets decided:
+- a small, clear fix to a Veirai skill (`hq/.agents/skills/<name>/`) → a draft PR in hq,
+  with the correction quoted as the reason
+- anything that needs Fredrik's call (a new skill, changing a process, removing one)
+  → a `beslut` issue via the `decision-queue` skill
+- a gap in a plugin skill (superpowers, claude-mem, …) → note it in
+  `veirai/claude-tooling/UPSTREAM.md` under "Gaps to raise"
+Report what you proposed, or "no skill corrections this session".
+
 ## 5. Update COORDINATION.md
 If work touched trio-scope (shared-memory docs, contracts, brand, skills,
 `shared_signals` types, or backend functions/migrations):
@@ -66,9 +86,9 @@ If the session made meaningful progress on anything tracked in STATUS.md:
 - Keep entries short: 2–4 sentences max
 
 ## 7. Parallel Session Check
-Call `mcp__Claude_Code_Remote__list_sessions` (mine: true) — if other
+Call `mcp__claude-code-remote__list_sessions` (mine: true) — if other
 sessions are still active in the same repos, note any handoff they need.
-Use `mcp__Claude_Code_Remote__create_trigger` with `persistent_session_id`
+Use `mcp__claude-code-remote__create_trigger` with `persistent_session_id`
 to message them if needed.
 
 ## 8. Session Summary
@@ -94,6 +114,9 @@ Output this wrap-up block:
 
 **Remembered to claude-mem:**
 - [what was written via important_workflow]
+- Backup: [Pushed N observations / ⚠️ failed: reason]
+
+**Skill improvements proposed:** [PR/issue links / none]
 
 **Claims released:** [N]
 ---

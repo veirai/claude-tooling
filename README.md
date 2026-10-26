@@ -6,11 +6,12 @@ Central source of truth for Claude Code plugins, skills, and session setup for t
 
 | Path | Purpose |
 |------|---------|
-| `scripts/session-start-plugins.sh` | Registers marketplaces, installs all plugins, clones gstack |
-| `scripts/test-plugins.sh` | Verifies all 7 plugins + gstack are present (exit 0 = OK) |
+| `scripts/session-start-plugins.sh` | Registers marketplaces, installs all plugins, installs gstack at a pinned commit |
+| `scripts/test-plugins.sh` | Verifies all 9 plugins are enabled and the skills are present (exit 0 = OK) |
 | `configs/launcher-settings.json` | `.claude/settings.json` template with the SessionStart auto-sync hook |
 | `skills/activate-plugins/` | Skill that triggers plugin setup on demand |
-| `skills/task-observer/` | Task observer skill suite |
+| `skills/session-wrap-up/` | End-of-session sequence (memory flush, claude-mem backup, skill corrections) |
+| `UPSTREAM.md` | Which external plugins and skills we follow, and how to review their new versions |
 
 ## Plugins managed
 
@@ -21,8 +22,10 @@ Central source of truth for Claude Code plugins, skills, and session setup for t
 - `understand-anything` — codebase analysis
 - `claude-mem` — persistent memory
 - `context7` — library documentation lookup
+- `security-guidance` — warns on risky edits (workflows, secrets)
+- `tinyfish` — web search, fetch and browser automation
 
-Plus the **gstack** skill suite (git-cloned from `garrytan/gstack`).
+Plus the **gstack** skill suite (from `garrytan/gstack`, pinned to one commit in the installer).
 
 ## One-time setup for a new Claude Code environment
 
