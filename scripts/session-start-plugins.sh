@@ -100,7 +100,8 @@ done
 
 # ── VERIFY ────────────────────────────────────────────────────────────────────
 log "Running verification..."
-"$(dirname "$0")/test-plugins.sh" && log "All checks passed." || log "WARNING: Some checks failed — see above."
+# Run through bash: a downloaded copy (activate-plugins step 1) has no execute bit.
+bash "$(dirname "$0")/test-plugins.sh" && log "All checks passed." || log "WARNING: Some checks failed — see above."
 
 # ── MEMORY RESTORE ────────────────────────────────────────────────────────────
 # Restore claude-mem observations from the git-backed backup branch.
