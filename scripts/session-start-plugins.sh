@@ -75,6 +75,24 @@ fi
 # take it out; skill corrections are proposed at wrap-up instead.
 rm -rf "$HOME/.claude/skills/task-observer" "$HOME/.claude/skills/.task-observer.sha"
 
+# ── CLAUDE-MEM BACKUP IN EVERY SESSION ────────────────────────────────────────
+# Fredrik 2026-10-27: the claude-mem export should run whatever folder a session
+# opens in. The repos' own Stop hooks only run inside that repo, so add the same
+# throttled export (at most every 30 min, one at a time) as a user-level Stop hook.
+# It takes effect from the next session start.
+USER_SETTINGS="$HOME/.claude/settings.json"
+MEM_EXPORT_CMD='[ -f /home/user/web/scripts/mem-backup-export.sh ] && bash /home/user/web/scripts/mem-backup-export.sh --if-older-than 1800 || true'
+[ -f "$USER_SETTINGS" ] || echo '{}' > "$USER_SETTINGS"
+if jq -e --arg c "$MEM_EXPORT_CMD" '[.hooks.Stop[]?.hooks[]?.command] | index($c)' "$USER_SETTINGS" >/dev/null 2>&1; then
+  log "claude-mem Stop hook already in user settings"
+elif jq --arg c "$MEM_EXPORT_CMD" '.hooks.Stop = ((.hooks.Stop // []) + [{"hooks":[{"type":"command","command":$c}]}])' \
+    "$USER_SETTINGS" > "${USER_SETTINGS}.tmp" && mv "${USER_SETTINGS}.tmp" "$USER_SETTINGS"; then
+  log "claude-mem Stop hook added to user settings (active from the next session start)"
+else
+  rm -f "${USER_SETTINGS}.tmp"
+  log "WARNING: could not add the claude-mem Stop hook to $USER_SETTINGS"
+fi
+
 # ── CLAUDE-TOOLING SKILLS + LOCAL COPIES ──────────────────────────────────────
 # Puts activate-plugins and session-wrap-up in ~/.claude/skills, and this script
 # plus test-plugins.sh in ~/.claude/, whatever folder the session started in.
