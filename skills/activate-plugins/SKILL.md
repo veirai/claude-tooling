@@ -44,7 +44,9 @@ Run all sub-steps in parallel.
 **claude-mem plugin context:**
 Call `mcp__plugin_claude-mem_mcp-search__session_start_context` with:
 - projects: "hq,landing,user,web" (claude-mem names projects after the folder a session ran
-  in: `user` is a session opened over the whole workspace; `veirai/hq`-style names return nothing)
+  in: `user` is a session opened over the whole workspace; `veirai/hq`-style names return nothing).
+  On a local Mac session the project is the folder name, e.g. `Veirai`: query `Veirai` as well.
+  Check `sqlite3 ~/.claude-mem/claude-mem.db "select project,count(*) from observations group by 1"` if unsure.
 Report: how many observations and from which dates, or "empty".
 If it says the project has no memory, the start hook's restore probably lost the race against
 claude-mem's database. From a web checkout run `bash scripts/mem-backup-import.sh`, then call
@@ -53,7 +55,8 @@ Also report how old the backup is: `git -C /home/user/web fetch -q origin claude
 git -C /home/user/web log -1 --format=%cr origin/claude-mem-backup`. Older than a day while
 sessions have been working = ⚠️ (hq's nightly `memory-health` check will be red too).
 
-**Cloud sync** (local sessions only): check `http://127.0.0.1:${CLAUDE_MEM_WORKER_PORT:-37700}/api/sync/status`
+**Cloud sync** (local sessions only): check `http://127.0.0.1:<port>/api/sync/status` (port: `$CLAUDE_MEM_WORKER_PORT`, else
+`CLAUDE_MEM_WORKER_PORT` in `~/.claude-mem/settings.json`, else 37700)
 — report configured+reachable ✅ or warn ⚠️ to run `claude-mem:cloud-sync`.
 In remote sessions: N/A — git-backed backup loop handles both import (session start) and export
 (session end via `mem-backup-export.sh` → `claude-mem-backup` branch). No cloud-sync required.
@@ -72,6 +75,9 @@ Fetch: `mcp__github__get_file_contents(owner:veirai, repo:hq, path:public/docs/s
 Report: version number + last changelog date. If it still carries the "outdated since the
 move" banner or lists Sofia deploy queues, report ⚠️ outdated and don't treat its 🟡 rows as
 live work: open `larm`/`beslut` issues (§5) are the live list.
+
+If `mcp__github__*` isn't available (local Mac: only `gh` is set up), fetch both files with
+`gh api "repos/veirai/hq/contents/public/docs/shared-memory/<FILE>?ref=main" --jq .content | base64 -d`.
 
 **Cross-session brain log** (may already be injected by hook under `─── Cross-session ───`):
 If injected: note the entries. If not: no action needed (hook only runs when log files exist this month).
