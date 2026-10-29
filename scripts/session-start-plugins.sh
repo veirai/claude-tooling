@@ -133,7 +133,10 @@ fi
 # ── CLOUD SYNC CHECK ──────────────────────────────────────────────────────────
 # Worker is a local process — skip in remote/cloud sessions where it won't run.
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
-  PORT="${CLAUDE_MEM_WORKER_PORT:-37700}"
+  # The worker port comes from the env, else from claude-mem's own settings (37701 on a
+  # local Mac where 37700 is taken), else the default.
+  PORT="${CLAUDE_MEM_WORKER_PORT:-$(jq -r '.CLAUDE_MEM_WORKER_PORT // empty' "$HOME/.claude-mem/settings.json" 2>/dev/null)}"
+  PORT="${PORT:-37700}"
   SYNC_STATUS=$(curl -s --connect-timeout 2 "http://127.0.0.1:${PORT}/api/sync/status" 2>/dev/null)
   if echo "$SYNC_STATUS" | grep -q '"configured":true'; then
     log "cloud-sync: configured"
