@@ -63,6 +63,11 @@ If the `─── SESSION-MEMORY.md ───` block appears in your context (in
 → extract and summarize: locked decisions, active in-flight PRs, open human decisions, key system IDs.
 If NOT visible (hook failed or web/landing session):
 → fetch immediately: `mcp__github__get_file_contents(owner:veirai, repo:hq, path:public/docs/shared-memory/SESSION-MEMORY.md, ref:refs/heads/main)` — do this before any other work.
+Since 2026-11-02 it is the short file (under 15 kB): "Current state", an index of locked
+decisions, constants and the latest session notes. Full decisions are in
+`SESSION-MEMORY-decisions.md` and history in `SESSION-MEMORY-archive-*.md`; open them only
+when your work touches that area. The shared rules are in `AGENT-POLICY.md` (same folder),
+which each repo's CLAUDE.md imports; if it is not in your context, fetch and read it too.
 Read its "Current state" block first: it wins over older dated entries, and every
 "send to Sofia", "Lovable Publish" or `mcp__Lovable__query_database` line below it is history.
 Report: 3–5 bullet summary of what's locked + what's active.
