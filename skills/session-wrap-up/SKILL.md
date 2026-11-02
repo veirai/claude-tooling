@@ -24,11 +24,16 @@ Do not skip — even short sessions capture something worth preserving.
 Steps:
 (a) Get current SHA + content:
     `mcp__github__get_file_contents(owner:veirai, repo:hq, path:public/docs/shared-memory/SESSION-MEMORY.md, ref:refs/heads/main)`
-(b) Add to the relevant sections:
-    - **Locked Decisions:** any architectural/policy/direction choices made
-    - **Key Findings & Learnings:** root causes confirmed, system behaviors verified, how things actually work
-    - **Active Work:** update in-flight PR table — mark merged/closed, add new PRs
-    - **Ecosystem Constants:** any new confirmed system IDs, states, or ownership
+(b) Add to the relevant sections (layout since 2026-11-02: `SESSION-MEMORY.md` is the short
+    file, kept under 15 kB; see hq `public/docs/shared-memory/AGENT-POLICY.md` → "Cross-session memory"):
+    - **Latest session notes** (in `SESSION-MEMORY.md`): one short note, at most ~15 lines —
+      findings, verified root causes, PR state, what is still open
+    - **Current state** (in `SESSION-MEMORY.md`): only if something changed how things are today
+    - **Locked decisions:** the full text goes in `SESSION-MEMORY-decisions.md` (same path, other
+      file; same get-SHA/write mechanic), plus one line in the index in `SESSION-MEMORY.md`
+    - **Ecosystem Constants** (in `SESSION-MEMORY.md`): any new confirmed system IDs, states, or ownership
+    - If the write would push `SESSION-MEMORY.md` over 15 kB, move the oldest session notes
+      verbatim to `SESSION-MEMORY-archive-YYYY-MM.md` (their month) in the same commit
 (c) Write back:
     `mcp__github__create_or_update_file(owner:veirai, repo:hq, branch:main, path:public/docs/shared-memory/SESSION-MEMORY.md, sha:<from step a>, content:<full updated file>)`
 
