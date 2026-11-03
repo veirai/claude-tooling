@@ -11,8 +11,8 @@ Run all independent steps in parallel.
 **After the move (2026-10-10/12) all three apps run on our own Supabase (org Veirai,
 Stockholm): Landing `uxssabiwybfdzjdiiewd`, HQ `kvzzftmdnonpzjvjkfwr`, Web
 `ovwioezbsqencnrplpck`.** Sofia/Lovable builds, deploys and operates nothing any more. The
-old Lovable projects are paused rollback copies with stale data, so never read state from
-them, and that includes the old `HQ`, `Landing` and `Web` connectors.
+old Lovable projects are unpublished and their databases were deleted (2026-11-02, hq#766),
+so never read state from them, and that includes the old `HQ`, `Landing` and `Web` connectors.
 
 ## 0. Project threads (claude.ai Projects)
 Cloud threads start without the repos, so the SessionStart hook hasn't run yet. First
@@ -94,8 +94,9 @@ Call `ListConnectors` — list each as ✅ connected+enabled, ⚠️ enabled but
 
 Expected for Veirai work: **HQ (ny)**, **Landing (ny)**, GitHub, Supabase, Vercel, Sentry,
 PostHog, Resend, Context7. Mark the old **HQ**, **Landing** and **Web** connectors as
-"old (Lovable copy)" instead of ✅ or ❌: they answer, but with data frozen at the move.
-Lovable is only needed for the AI gateway and the rollback copies until hq#766 closes them.
+"old (Lovable copy)" instead of ✅ or ❌: their databases were deleted 2026-11-02, so they fail or return nothing current.
+No app uses Lovable's AI gateway any more, and the old Lovable databases are deleted (hq#766).
+Lovable still holds the old code and the HR sales demo (`4d4ccc89`).
 In cloud sessions the context7 *plugin's* own MCP server (`plugin:context7:context7`) can't
 get through the network proxy; the claude.ai Context7 connector (`mcp__Context7__*`) is the
 working path there, so report the plugin server as ⚠️ only if that connector is missing too.
