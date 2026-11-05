@@ -1,0 +1,14 @@
+{
+  "name": "veirai-tooling",
+  "owner": {
+    "name": "Veirai"
+  },
+  "description": "Veirais egna Claude Code-plugins",
+  "plugins": [
+    {
+      "name": "sessionskollen",
+      "source": "./plugins/sessionskollen",
+      "description": "Panel med alla dina Claude-sessioner: vad som väntar på dig, vad som pågår och var du kan spara credits"
+    }
+  ]
+}

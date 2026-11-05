@@ -34,6 +34,9 @@ claude plugin marketplace add "Egonex-AI/Understand-Anything#v2.9.0"      2>/dev
 claude plugin marketplace add "thedotmack/claude-mem#v13.13.1"             2>/dev/null || true
 claude plugin marketplace add upstash/context7                             2>/dev/null || true
 claude plugin marketplace add anthropics/knowledge-work-plugins            2>/dev/null || true
+# Our own marketplace (this repo): sessionskollen, the session overview pane.
+claude plugin marketplace add veirai/claude-tooling                       2>/dev/null || true
+claude plugin marketplace update veirai-tooling                          2>/dev/null || true
 
 # ── PLUGINS ───────────────────────────────────────────────────────────────────
 log "Installing plugins..."
@@ -46,6 +49,7 @@ claude plugin install claude-mem@thedotmack                           --scope us
 claude plugin install context7@context7-marketplace                   --scope user 2>/dev/null || true
 claude plugin install security-guidance@knowledge-work-plugins        --scope user 2>/dev/null || true
 claude plugin install tinyfish@knowledge-work-plugins                 --scope user 2>/dev/null || true
+claude plugin install sessionskollen@veirai-tooling                   --scope user 2>/dev/null || true
 
 # ── SKILL SUITES (git-cloned, not marketplace plugins) ────────────────────────
 # SECURITY: gstack is a third-party repo. It is pinned to an exact commit HERE,
