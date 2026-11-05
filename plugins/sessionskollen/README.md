@@ -1,0 +1,49 @@
+# Sessionskollen
+
+En panel bredvid chatten som visar alla dina Claude Code-sessioner på ett ställe.
+
+Öppna den med `/sessioner`. Den visar:
+
+- **Läget just nu**: två–tre meningar på klarspråk om vad som väntar på dig och vad som pågår.
+- **Väntar på dig**: sessioner som ställer en fråga, obesvarade `beslut` och `larm` märkta
+  `fredrik-behovs` i veirai/hq, och frågor som blev hängande i arkiverade trådar
+  de senaste 14 dagarna (dölj dem med "Klar, dölj").
+- **Möjligt dubbelarbete**: aktiva sessioner som verkar jobba med samma sak.
+- **Sessionerna** grupperade som Jobbar nu, Klar att granska och Vilar, med modell, kostnad
+  och hur fullt minnet (kontexten) är.
+- **Förbrukning** senaste 7 dagarna per modell, och hur mycket rutinjobb som körde Opus.
+- **Spartips** per session.
+
+## Vad den gör och inte gör
+
+Den läser bara. Den startar, stoppar, arkiverar eller skriver aldrig till en session och
+skapar inga signaler: beslut och larm bor kvar i HQ (signalhubben) och visas här.
+
+Den hämtar ingenting medan panelen är stängd. Sessioner på samma maskin delar en bild
+(högst 75 sekunder gammal), så två öppna paneler hämtar inte dubbelt. En kort fråga till
+Haiku görs bara när läget har ändrats.
+
+Kostnaderna är vad Claude rapporterar per session (`cost_usd`). På ett abonnemang är det ett
+mått på hur mycket av kvoten sessionen använt, inte en faktura. "Rutin" eller "komplex" är
+Haikus gissning utifrån titel och status.
+
+## Källor
+
+- `claude-code-remote` MCP: `list_sessions`, `get_session`
+- `github` MCP: `list_issues` på veirai/hq (etiketterna `beslut`, `besvarad`, `larm`, `fredrik-behovs`)
+
+## Installation
+
+Installeras av `scripts/session-start-plugins.sh` vid varje sessionsstart. För hand:
+
+```bash
+claude plugin marketplace add veirai/claude-tooling
+claude plugin install sessionskollen@veirai-tooling --scope user
+```
+
+## Utveckla
+
+```bash
+claude plugin validate plugins/sessionskollen
+claude plugin test plugins/sessionskollen
+```

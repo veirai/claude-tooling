@@ -15,6 +15,7 @@ EXPECTED_PLUGINS=(
   "context7@context7-marketplace"
   "security-guidance@knowledge-work-plugins"
   "tinyfish@knowledge-work-plugins"
+  "sessionskollen@veirai-tooling"
 )
 
 EXPECTED_SKILL_DIRS=(

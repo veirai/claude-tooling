@@ -111,7 +111,7 @@ working path there, so report the plugin server as ⚠️ only if that connector
 Confirm ALL of the following are present in the skill list. Missing = ❌ gap.
 
 **Plugin suites:** superpowers, claude-mem, understand-anything, code-review, context7, code-simplifier,
-claude-code-setup, security-guidance, tinyfish
+claude-code-setup, security-guidance, tinyfish, sessionskollen (our own: `/sessioner` opens the session overview pane)
 **Skill suites:** gstack
 **Veirai workflow skills** (from `hq/.claude/skills`): secret-detection,
 three-role-code-review, verify-before-claiming-done, pre-approve-architecture-check,
@@ -142,13 +142,13 @@ Output a single compact table:
 
 | Check | Status | Notes |
 |---|---|---|
-| Plugins | ✅/❌ | N/9 plugins |
+| Plugins | ✅/❌ | N/10 plugins |
 | claude-mem | ✅/⚠️ | observations injected + backup age |
 | Cloud sync | ✅/⚠️/N/A | configured+reachable / warning / remote session |
 | SESSION-MEMORY | ✅/⚠️ | injected by hook / manually fetched / not found |
 | STATUS.md | ✅/⚠️ | vX.XX loaded, last entry date, outdated banner? |
 | MCPs | N active | list any ❌ and any old Lovable-era connectors |
-| Plugin suites | ✅/❌ | superpowers, claude-mem, understand-anything, code-review, context7, code-simplifier, claude-code-setup, security-guidance, tinyfish |
+| Plugin suites | ✅/❌ | superpowers, claude-mem, understand-anything, code-review, context7, code-simplifier, claude-code-setup, security-guidance, tinyfish, sessionskollen |
 | Skill suites | ✅/❌ | gstack |
 | Veirai skills | N/12 present | list any ❌ missing |
 | Intra-HQ claims | N claims | list scope+owner if any |
@@ -178,6 +178,7 @@ Print this reminder table:
 | Shipping a change | Draft PR → CI green → Fredrik writes "merge". Backend deploys run from GitHub workflows (HQ `supabase-deploy.yml`, Web release train, Landing `supabase-deploy.yml`). Never a Sofia request or Lovable Publish. |
 | Reading live data | HQ: `mcp__Supabase__execute_sql` on `kvzzftmdnonpzjvjkfwr`. Web: only with Fredrik's explicit ok in the thread. |
 | Need a real decision from Fredrik | `decision-queue` (`beslut` issue) |
+| Overview of all sessions, what waits for Fredrik, where credits go | `/sessioner` (Sessionskollen pane) |
 | Fredrik has to click something in a console | `guided-handoff` |
 | Adding or moving a vendor/service | Update `vendors.json` in the same PR |
 | Decision locked | Write to SESSION-MEMORY.md (one batched commit, see §2) |
@@ -199,6 +200,7 @@ claude plugin marketplace add "Egonex-AI/Understand-Anything#v2.9.0" || true
 claude plugin marketplace add "thedotmack/claude-mem#v13.13.1" || true
 claude plugin marketplace add upstash/context7 || true
 claude plugin marketplace add anthropics/knowledge-work-plugins || true
+claude plugin marketplace add veirai/claude-tooling || true
 ```
 
 ### Install plugins
@@ -212,6 +214,7 @@ claude plugin install claude-mem@thedotmack                     --scope user
 claude plugin install context7@context7-marketplace             --scope user
 claude plugin install security-guidance@knowledge-work-plugins  --scope user
 claude plugin install tinyfish@knowledge-work-plugins           --scope user
+claude plugin install sessionskollen@veirai-tooling             --scope user
 ```
 
 ### Install skill suites
