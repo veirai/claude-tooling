@@ -24,7 +24,8 @@ EXPECTED_SKILL_DIRS=(
 )
 
 MISSING=()
-INSTALLED=$(claude plugin list 2>/dev/null || echo "")
+# Newer CLIs print "❯ name@market" instead of "> name@market"; normalise so both match.
+INSTALLED=$( (claude plugin list 2>/dev/null || true) | sed 's/❯/>/')
 
 for plugin in "${EXPECTED_PLUGINS[@]}"; do
   # The entry's Status line follows its "> name@marketplace" header within 4 lines.
