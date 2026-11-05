@@ -93,6 +93,57 @@ else
   log "WARNING: could not add the claude-mem Stop hook to $USER_SETTINGS"
 fi
 
+# ── HARD "NEVER" RULES AS PERMISSION BLOCKS ───────────────────────────────────
+# Fredrik 2026-11-02 (thread "Korta startläsningen för Claude-trådar"): the "never"
+# rules in hq public/docs/shared-memory/AGENT-POLICY.md should stop a session even if
+# it never read them. Repo .claude/settings.json files only load when a session starts
+# inside that repo (not over the whole workspace), so the same list goes into the
+# user-level settings here. Deny always wins over allow; the lists are merged, never
+# replaced. Keep this list identical to permissions.deny/ask in the .claude/settings.json
+# of hq, web and landing. Claude Code reloads settings files mid-session.
+VEIRAI_PERMISSIONS=$(cat <<'JSON'
+{
+  "deny": [
+    "Bash(git checkout -b auto/sofia/*)",
+    "Bash(git switch -c auto/sofia/*)",
+    "Bash(git branch auto/sofia/*)",
+    "Bash(git push * auto/sofia/*)",
+    "Bash(git push *:auto/sofia/*)",
+    "Bash(git push *:refs/heads/auto/sofia/*)",
+    "Bash(supabase functions deploy hq-sofia-*)",
+    "Bash(supabase functions invoke hq-sofia-*)",
+    "Bash(curl *functions/v1/hq-sofia-*)",
+    "Bash(supabase * --project-ref anzpyzdeombjtsktdkwh*)",
+    "Bash(supabase * --project-ref=anzpyzdeombjtsktdkwh*)",
+    "Bash(supabase * --project-ref vrhyefiovchrcbuynypn*)",
+    "Bash(supabase * --project-ref=vrhyefiovchrcbuynypn*)",
+    "Bash(supabase * --project-ref tutnimlqteoybchsbwbf*)",
+    "Bash(supabase * --project-ref=tutnimlqteoybchsbwbf*)",
+    "Bash(curl *anzpyzdeombjtsktdkwh.supabase.co*)",
+    "Bash(curl *vrhyefiovchrcbuynypn.supabase.co*)",
+    "Bash(curl *tutnimlqteoybchsbwbf.supabase.co*)",
+    "mcp__Supabase__apply_migration",
+    "mcp__Supabase__deploy_edge_function",
+    "mcp__Lovable__deploy_project",
+    "Edit(**/docs/synced-from-hq/**)"
+  ],
+  "ask": [
+    "Bash(supabase * --project-ref cfhhfnhxdvopedlyrqik*)",
+    "Bash(supabase * --project-ref=cfhhfnhxdvopedlyrqik*)"
+  ]
+}
+JSON
+)
+if jq --argjson p "$VEIRAI_PERMISSIONS" \
+    '.permissions.deny = (((.permissions.deny // []) + $p.deny) | unique)
+     | .permissions.ask = (((.permissions.ask // []) + $p.ask) | unique)' \
+    "$USER_SETTINGS" > "${USER_SETTINGS}.tmp" && mv "${USER_SETTINGS}.tmp" "$USER_SETTINGS"; then
+  log "Veirai permission blocks in user settings ($(echo "$VEIRAI_PERMISSIONS" | jq '.deny | length') deny, $(echo "$VEIRAI_PERMISSIONS" | jq '.ask | length') ask)"
+else
+  rm -f "${USER_SETTINGS}.tmp"
+  log "WARNING: could not add the Veirai permission blocks to $USER_SETTINGS"
+fi
+
 # ── CLAUDE-TOOLING SKILLS + LOCAL COPIES ──────────────────────────────────────
 # Puts activate-plugins and session-wrap-up in ~/.claude/skills, and this script
 # plus test-plugins.sh in ~/.claude/, whatever folder the session started in.

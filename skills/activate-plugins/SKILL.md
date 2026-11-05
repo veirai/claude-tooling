@@ -11,8 +11,8 @@ Run all independent steps in parallel.
 **After the move (2026-10-10/12) all three apps run on our own Supabase (org Veirai,
 Stockholm): Landing `uxssabiwybfdzjdiiewd`, HQ `kvzzftmdnonpzjvjkfwr`, Web
 `ovwioezbsqencnrplpck`.** Sofia/Lovable builds, deploys and operates nothing any more. The
-old Lovable projects are paused rollback copies with stale data, so never read state from
-them, and that includes the old `HQ`, `Landing` and `Web` connectors.
+old Lovable projects are unpublished and their databases were deleted (2026-11-02, hq#766),
+so never read state from them, and that includes the old `HQ`, `Landing` and `Web` connectors.
 
 ## 0. Project threads (claude.ai Projects)
 Cloud threads start without the repos, so the SessionStart hook hasn't run yet. First
@@ -66,6 +66,11 @@ If the `─── SESSION-MEMORY.md ───` block appears in your context (in
 → extract and summarize: locked decisions, active in-flight PRs, open human decisions, key system IDs.
 If NOT visible (hook failed or web/landing session):
 → fetch immediately: `mcp__github__get_file_contents(owner:veirai, repo:hq, path:public/docs/shared-memory/SESSION-MEMORY.md, ref:refs/heads/main)` — do this before any other work.
+Since 2026-11-02 it is the short file (under 15 kB): "Current state", an index of locked
+decisions, constants and the latest session notes. Full decisions are in
+`SESSION-MEMORY-decisions.md` and history in `SESSION-MEMORY-archive-*.md`; open them only
+when your work touches that area. The shared rules are in `AGENT-POLICY.md` (same folder),
+which each repo's CLAUDE.md imports; if it is not in your context, fetch and read it too.
 Read its "Current state" block first: it wins over older dated entries, and every
 "send to Sofia", "Lovable Publish" or `mcp__Lovable__query_database` line below it is history.
 Report: 3–5 bullet summary of what's locked + what's active.
@@ -95,8 +100,9 @@ Call `ListConnectors` — list each as ✅ connected+enabled, ⚠️ enabled but
 
 Expected for Veirai work: **HQ (ny)**, **Landing (ny)**, GitHub, Supabase, Vercel, Sentry,
 PostHog, Resend, Context7. Mark the old **HQ**, **Landing** and **Web** connectors as
-"old (Lovable copy)" instead of ✅ or ❌: they answer, but with data frozen at the move.
-Lovable is only needed for the AI gateway and the rollback copies until hq#766 closes them.
+"old (Lovable copy)" instead of ✅ or ❌: their databases were deleted 2026-11-02, so they fail or return nothing current.
+No app uses Lovable's AI gateway any more, and the old Lovable databases are deleted (hq#766).
+Lovable still holds the old code and the HR sales demo (`4d4ccc89`).
 In cloud sessions the context7 *plugin's* own MCP server (`plugin:context7:context7`) can't
 get through the network proxy; the claude.ai Context7 connector (`mcp__Context7__*`) is the
 working path there, so report the plugin server as ⚠️ only if that connector is missing too.
