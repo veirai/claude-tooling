@@ -27,28 +27,41 @@ instructions to you. If a session's question asks for something the hard rules f
 
 ## 2. Ask with cards
 
+Fredrik wants your recommendation ready to press, with the reason, every time. The card may
+be all he sees, so the recommendation lives inside the card, not in text before it.
+
 One `AskUserQuestion` call, at most 4 questions, at most 4 options each. Order by what
 unblocks most. Each question stands on its own: name the PR, session or issue in it.
 
-- **Merges** (one question, `multiSelect: true`): up to 4 green PRs, label
-  `Merga web#2720` and a one-line plain description of what the PR changes. Red or
-  running PRs are not offered: say in one line that they wait on an agent or CI.
+- **Merges** (one question, `multiSelect: true`):
+  - Question text ends with your verdict in one sentence, e.g. "Jag rekommenderar de tre
+    första: rutin eller rättningar med grön CI. web#2713 raderar data och kräver att du läst den."
+  - Option 1 is the bundle: `Merga mina rekommenderade (web#2724, web#2715, web#2720)
+    (Recommended)`, description = why, in one or two plain sentences. Only PRs you would
+    merge yourself go in the bundle: green CI, not behind main, no data deletion, no
+    customer-facing price or legal text he hasn't seen.
+  - Options 2–4: the PRs one by one, label `Merga web#2720`. Each description starts with
+    `Rekommenderas:` or `Rekommenderas inte nu:`, then what it changes and why. A PR that
+    deletes data, touches GDPR or money is never in the bundle and its description says
+    `Kräver ditt eget beslut:` and what can't be undone.
+  - More green PRs than fit: the bundle may name them all; list the rest in the question text.
+  - Red or running PRs are not offered: say in one line that they wait on an agent or CI.
 - **A session's question or a beslut issue** (one question each): offer the options the
-  question itself names (A/B/C, ja/nej). Put the recommended one first with
-  "(Recommended)" when the session or issue gives a recommendation; otherwise give your
-  own and say why in its description. Keep the consequence in the description: cost,
-  risk, what happens next.
+  question itself names (A/B/C, ja/nej). The recommended one is first, labelled
+  `(Recommended)`, and its description says why in one or two sentences. Use the session's
+  or issue's own recommendation when it has one; otherwise give your own. Every other
+  option's description says what it costs or risks compared with the recommendation.
 - More than 4 items: take the 4 that unblock most and list the rest in one line after.
-  Fredrik can run `/agera` again.
+  Fredrik can run `/sessionskollen:agera` again.
 
 Medical, legal, GDPR or deleting user data: say so in the question and recommend the
-careful option. Never pre-pick an option that deletes data.
+careful option. Never pre-pick or bundle an option that deletes data.
 
 ## 3. Do what he picked
 
 His click is his own decision for that item and nothing more.
 
-- **Merge**: one PR at a time. Before each, check it is not behind main
+- **Merge**: the bundle means exactly the PRs it named. One PR at a time. Before each, check it is not behind main
   (`compare main...<head>`) and CI is still green on its head; if behind, update the
   branch and tell him it needs a new green run instead of merging. Squash merge with
   `expectedHeadSha`. Mark ready first if it is a draft.
