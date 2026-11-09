@@ -171,6 +171,34 @@ for f in session-start-plugins.sh test-plugins.sh; do
   fi
 done
 
+# ── READING LIVE DATA WITHOUT PROMPTS ─────────────────────────────────────────
+# Fredrik 2026-11-08: no approval click for every Supabase read. AGENT-POLICY
+# "Reading is always allowed (2026-11-05)" already says reads need no question, and
+# writes go only via migrations in a PR. So: read-only Supabase tools are allowed,
+# and execute_sql goes through supabase-read-guard.mjs, which allows provably
+# read-only SQL on Web/HQ/Landing, refuses writes and the old Lovable projects, and
+# leaves everything else (staging, unclear queries) to the normal prompt.
+GUARD="$HOME/.claude/hooks/supabase-read-guard.mjs"
+mkdir -p "$HOME/.claude/hooks"
+if [ -f "$SCRIPT_DIR/supabase-read-guard.mjs" ]; then
+  cp "$SCRIPT_DIR/supabase-read-guard.mjs" "$GUARD"
+else
+  curl -fsSL "$RAW/scripts/supabase-read-guard.mjs" -o "$GUARD.tmp" && mv "$GUARD.tmp" "$GUARD" \
+    || log "WARNING: could not fetch supabase-read-guard.mjs (SQL reads will still ask)"
+fi
+GUARD_CMD="node $GUARD"
+SUPABASE_READ_TOOLS='["mcp__Supabase__list_tables","mcp__Supabase__list_extensions","mcp__Supabase__list_migrations","mcp__Supabase__list_edge_functions","mcp__Supabase__get_edge_function","mcp__Supabase__query_logs","mcp__Supabase__get_advisors","mcp__Supabase__get_project","mcp__Supabase__get_project_url","mcp__Supabase__list_projects","mcp__Supabase__list_organizations","mcp__Supabase__get_organization","mcp__Supabase__list_branches","mcp__Supabase__search_docs","mcp__Supabase__generate_typescript_types"]'
+if [ -f "$GUARD" ] && jq --arg c "$GUARD_CMD" --argjson r "$SUPABASE_READ_TOOLS" \
+    '.permissions.allow = (((.permissions.allow // []) + $r) | unique)
+     | if ([.hooks.PreToolUse[]?.hooks[]?.command] | index($c)) then .
+       else .hooks.PreToolUse = ((.hooks.PreToolUse // []) + [{"matcher":"mcp__Supabase__execute_sql","hooks":[{"type":"command","command":$c}]}]) end' \
+    "$USER_SETTINGS" > "${USER_SETTINGS}.tmp" && mv "${USER_SETTINGS}.tmp" "$USER_SETTINGS"; then
+  log "Supabase reads allowed without prompts (read guard on execute_sql)"
+else
+  rm -f "${USER_SETTINGS}.tmp"
+  log "WARNING: could not set up the Supabase read guard; reads will still ask"
+fi
+
 # ── VERIFY ────────────────────────────────────────────────────────────────────
 log "Running verification..."
 # Run through bash: a downloaded copy (activate-plugins step 1) has no execute bit.
