@@ -121,6 +121,7 @@ test('/sessioner svarar med översikten som text, så den syns även där panele
   expect(/Beslut hq#1: pris/.test(res.text ?? '')).toBe(true)
   expect(/web#10, CI grön: Klar fix/.test(res.text ?? '')).toBe(true)
   expect(/Jobbar nu:/.test(res.text ?? '')).toBe(true)
+  expect(/Skriv \/sessionskollen:agera/.test(res.text ?? '')).toBe(true)
 })
 
 test('textsvaret plattar till främmande text till en rad', async ($, on) => {
