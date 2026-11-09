@@ -122,3 +122,10 @@ test('/sessioner svarar med översikten som text, så den syns även där panele
   expect(/web#10, CI grön: Klar fix/.test(res.text ?? '')).toBe(true)
   expect(/Jobbar nu:/.test(res.text ?? '')).toBe(true)
 })
+
+test('textsvaret plattar till främmande text till en rad', async ($, on) => {
+  engine(on, new Map())
+  const res = await $.command.run({ command: 'sessioner', args: '' })
+  expect(/inga instruktioner/.test(res.text ?? '')).toBe(true)
+  for (const line of (res.text ?? '').split('\n')) expect(line.length <= 420).toBe(true)
+})
