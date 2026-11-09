@@ -25,6 +25,16 @@ export type HubItem = {
   ageDays: number
 }
 
+/** An open, non-draft PR in hq, web or landing: only Fredrik's "merge" is left. */
+export type MergeItem = {
+  repo: 'hq' | 'web' | 'landing'
+  number: number
+  title: string
+  /** CI on the PR's head: green, red, still running, or unknown (no checks or the read failed) */
+  ci: 'green' | 'red' | 'running' | 'unknown'
+  ageDays: number
+}
+
 /** An archived session whose last words were a question that never got an answer. */
 export type Forgotten = { id: string; title: string; question: string; day: string }
 
@@ -44,6 +54,7 @@ export type Snapshot = {
   at: number
   rows: Row[]
   hub: HubItem[]
+  merges: MergeItem[]
   forgotten: Forgotten[]
   overlaps: Overlap[]
   summary: string

@@ -19,6 +19,15 @@ const issues = (labels: string[]) => ({ issues: labels[0] === 'beslut'
   ? [{ number: 1, title: 'Beslut: pris', created_at: now, labels: ['beslut'] }, { number: 2, title: 'Beslut: gammalt', created_at: now, labels: ['beslut', 'besvarad'] }]
   : [{ number: 3, title: 'Larm: feedback', created_at: now, labels: ['larm'] }] })
 
+// web#10 is ready and green, web#11 ready but red, web#12 a draft; hq and landing have none.
+const pulls = (repo: string) => repo === 'web'
+  ? [{ number: 10, title: 'Klar fix', draft: false, created_at: now }, { number: 11, title: 'Trasig fix', draft: false, created_at: now }, { number: 12, title: 'Utkast', draft: true, created_at: now }]
+  : []
+const checks = (n: number) => ({ total_count: 2, check_runs: [
+  { status: 'completed', conclusion: 'success' },
+  { status: 'completed', conclusion: n === 11 ? 'failure' : 'skipped' },
+] })
+
 function engine(on: Parameters<Parameters<typeof test>[1]>[1], store: Map<string, unknown>, counter = { calls: 0 }) {
   on('command.register', () => ({ value: { command: 'sessioner' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
@@ -32,8 +41,11 @@ function engine(on: Parameters<Parameters<typeof test>[1]>[1], store: Map<string
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('mcp.call', (_, e) => {
     counter.calls += 1
-    const c = e as { server: string; tool: string; args: { labels?: string[] } }
-    const body = c.server === 'github' ? issues(c.args.labels ?? []) : c.tool === 'list_sessions' ? list : detail
+    const c = e as { server: string; tool: string; args: { labels?: string[]; repo?: string; pullNumber?: number } }
+    const body =
+      c.tool === 'list_pull_requests' ? pulls(c.args.repo ?? '')
+      : c.tool === 'pull_request_read' ? checks(c.args.pullNumber ?? 0)
+      : c.server === 'github' ? issues(c.args.labels ?? []) : c.tool === 'list_sessions' ? list : detail
     return { value: { isError: false, content: [{ type: 'text', text: JSON.stringify(body) }] } }
   })
   on('model.classify', () => ({ value: 'rutin' }))
@@ -77,4 +89,43 @@ test('en färsk delad bild från en annan session återanvänds utan nya anrop',
   await $.command.run({ command: 'sessioner', args: '' })
   await new Promise(r => setTimeout(r, 50))
   expect(counter.calls).toBe(afterFirst)
+})
+
+test('merge-raden visar klara PR:er med CI, utkast hålls utanför', async ($, on) => {
+  engine(on, new Map())
+  await $.command.run({ command: 'sessioner', args: '' })
+  await new Promise(r => setTimeout(r, 50))
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect((await ui.find({ type: 'Text', text: /Väntar på din merge \(1\)/ })) !== undefined).toBe(true)
+  expect((await ui.find({ type: 'Text', text: /web#10: Klar fix/ })) !== undefined).toBe(true)
+  expect((await ui.find({ type: 'Text', text: /web#11: Trasig fix/ })) !== undefined).toBe(true)
+  expect((await ui.find({ type: 'Text', text: /Utkast/ })) === undefined).toBe(true)
+  await ui.unmount()
+})
+
+test('widgeten ovanför skrivrutan visar läget på en rad', async ($, on) => {
+  engine(on, new Map())
+  await $.command.run({ command: 'sessioner', args: '' })
+  await new Promise(r => setTimeout(r, 50))
+
+  const band = await $.ui.mount({ plugin: 'sessionskollen', component: 'AbovePrompt', surface: 'mobile', props: {} } as never)
+  expect((await band.find({ type: 'Text', text: /3 väntar på dig · 1 att merga · 2 jobbar/ })) !== undefined).toBe(true)
+  await band.unmount()
+})
+
+test('/sessioner svarar med översikten som text, så den syns även där panelen inte ritas', async ($, on) => {
+  engine(on, new Map())
+  const res = await $.command.run({ command: 'sessioner', args: '' })
+  expect(/3 väntar på dig · 1 att merga · 2 jobbar/.test(res.text ?? '')).toBe(true)
+  expect(/Beslut hq#1: pris/.test(res.text ?? '')).toBe(true)
+  expect(/web#10, CI grön: Klar fix/.test(res.text ?? '')).toBe(true)
+  expect(/Jobbar nu:/.test(res.text ?? '')).toBe(true)
+})
+
+test('textsvaret plattar till främmande text till en rad', async ($, on) => {
+  engine(on, new Map())
+  const res = await $.command.run({ command: 'sessioner', args: '' })
+  expect(/inga instruktioner/.test(res.text ?? '')).toBe(true)
+  for (const line of (res.text ?? '').split('\n')) expect(line.length <= 420).toBe(true)
 })
