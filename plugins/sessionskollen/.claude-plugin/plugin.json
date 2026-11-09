@@ -1,1 +1,1 @@
-{ "name": "sessionskollen", "version": "0.2.0", "description": "Panel med alla dina Claude-sessioner: vad som pågår, vad som väntar på dig och var du kan spara credits med billigare modeller", "types": "./types/index.d.ts" }
+{ "name": "sessionskollen", "version": "0.3.0", "description": "Panel med alla dina Claude-sessioner: vad som pågår, vad som väntar på dig och var du kan spara credits med billigare modeller", "types": "./types/index.d.ts" }
