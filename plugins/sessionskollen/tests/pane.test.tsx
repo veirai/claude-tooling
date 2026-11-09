@@ -113,3 +113,12 @@ test('widgeten ovanför skrivrutan visar läget på en rad', async ($, on) => {
   expect((await band.find({ type: 'Text', text: /3 väntar på dig · 1 att merga · 2 jobbar/ })) !== undefined).toBe(true)
   await band.unmount()
 })
+
+test('/sessioner svarar med översikten som text, så den syns även där panelen inte ritas', async ($, on) => {
+  engine(on, new Map())
+  const res = await $.command.run({ command: 'sessioner', args: '' })
+  expect(/3 väntar på dig · 1 att merga · 2 jobbar/.test(res.text ?? '')).toBe(true)
+  expect(/Beslut hq#1: pris/.test(res.text ?? '')).toBe(true)
+  expect(/web#10, CI grön: Klar fix/.test(res.text ?? '')).toBe(true)
+  expect(/Jobbar nu:/.test(res.text ?? '')).toBe(true)
+})

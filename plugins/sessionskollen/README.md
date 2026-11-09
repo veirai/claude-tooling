@@ -2,7 +2,8 @@
 
 En panel bredvid chatten som visar alla dina Claude Code-sessioner på ett ställe.
 
-Öppna den med `/sessioner`. Den visar:
+Öppna den med `/sessioner`. Kommandot skriver alltid översikten som text i chatten, och öppnar
+panelen där appen kan visa den (Claude-appen ritar inte panelen för alla sessioner). Den visar:
 
 - **Läget just nu**: två–tre meningar på klarspråk om vad som väntar på dig och vad som pågår.
 - **Väntar på dig**: sessioner som ställer en fråga, obesvarade `beslut` och `larm` märkta

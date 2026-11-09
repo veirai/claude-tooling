@@ -50,6 +50,8 @@ claude plugin install context7@context7-marketplace                   --scope us
 claude plugin install security-guidance@knowledge-work-plugins        --scope user 2>/dev/null || true
 claude plugin install tinyfish@knowledge-work-plugins                 --scope user 2>/dev/null || true
 claude plugin install sessionskollen@veirai-tooling                   --scope user 2>/dev/null || true
+# install does nothing when an older version is already there: update pulls the new one.
+claude plugin update sessionskollen@veirai-tooling                    --scope user 2>/dev/null || true
 
 # ── SKILL SUITES (git-cloned, not marketplace plugins) ────────────────────────
 # SECURITY: gstack is a third-party repo. It is pinned to an exact commit HERE,

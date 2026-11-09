@@ -597,6 +597,40 @@ function ago(now: number, at: number) {
   return s < 60 ? 'nyss' : `${Math.round(s / 60)} min sedan`
 }
 
+/** The overview as plain text, for surfaces that do not draw the pane. */
+export function textOverview(snap: Snapshot): string {
+  const lines: string[] = [`Sessionskollen: ${bandText(snap)}`]
+  if (snap.error) lines.push(snap.error)
+  if (snap.summary) lines.push('', snap.summary)
+
+  const asks = snap.rows.filter(r => r.group === 'action')
+  const hubMine = snap.hub.filter(h => h.isForFredrik)
+  if (asks.length + hubMine.length + snap.forgotten.length > 0) {
+    lines.push('', 'Väntar på dig:')
+    for (const r of asks) lines.push(`- ${r.title}: ${r.needs || 'frågar dig'}`)
+    for (const h of hubMine) lines.push(`- ${h.kind === 'beslut' ? 'Beslut' : 'Larm'} hq#${h.number}: ${h.title} (${h.ageDays} d)`)
+    for (const f of snap.forgotten) lines.push(`- Obesvarad fråga i "${f.title}": ${f.question}`)
+  }
+
+  const merges = snap.merges ?? []
+  if (merges.length > 0) {
+    lines.push('', 'Väntar på din merge (bara gröna är din tur):')
+    for (const m of merges) lines.push(`- ${m.repo}#${m.number}, CI ${CI_LABEL[m.ci]}: ${m.title}`)
+  }
+
+  const working = snap.rows.filter(r => r.group === 'working')
+  if (working.length > 0) {
+    lines.push('', 'Jobbar nu:')
+    for (const r of working) lines.push(`- ${r.title}${r.doing ? `: ${r.doing}` : ''}`)
+  }
+  if (snap.overlaps.length > 0) {
+    lines.push('', 'Möjligt dubbelarbete:')
+    for (const o of snap.overlaps) lines.push(`- "${o.a}" och "${o.b}": ${o.why}`)
+  }
+
+  return lines.join('\n')
+}
+
 async function openPane($: EngineInterface) {
   await $.ui.open({ id: PANE, title: 'Sessionskollen' })
   void refresh($)
@@ -626,10 +660,15 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // /sessioner always answers with the overview as text in the chat: the
+  // Claude app does not draw the pane for every session (a cloud session seen
+  // from the desktop app showed only "är öppen" and nothing else, 2026-11-09).
   on('command.run', { command: 'sessioner' }, async $ => {
-    await openPane($)
+    await $.ui.open({ id: PANE, title: 'Sessionskollen' })
+    await refresh($)
+    const snap = await read($, snapshot)
 
-    return { text: 'Sessionskollen är öppen.' }
+    return { text: snap ? textOverview(snap) : 'Sessionskollen kunde inte hämta något just nu.' }
   })
 
   // The small widget: one line above the prompt, always in view. Press it for the pane.
