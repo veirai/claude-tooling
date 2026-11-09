@@ -40,12 +40,19 @@ const SAFE_CALLS = new Set(`
   obj_description col_description format_type current_setting version
 `.split(/\s+/).filter(Boolean));
 
-function out(decision, reason) {
-  process.stdout.write(JSON.stringify({
-    hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: decision, permissionDecisionReason: reason },
-  }));
+function out(decision, reason, updatedInput) {
+  const o = { hookEventName: 'PreToolUse', permissionDecision: decision, permissionDecisionReason: reason };
+  if (updatedInput) o.updatedInput = updatedInput;
+  process.stdout.write(JSON.stringify({ hookSpecificOutput: o }));
   process.exit(0);
 }
+
+// The regex check is only the first layer: Postgres can call a function through
+// attribute notation (t.fn means fn(t)) with no parentheses, which no text check can
+// rule out (security review 2026-11-09). So an auto-allowed query is also run as a
+// read-only transaction: the whole string is one implicit transaction, and
+// SET TRANSACTION READ ONLY makes Postgres itself refuse any write in it.
+const READ_ONLY_PREFIX = 'set transaction read only;\n';
 
 function isReadOnly(sql) {
   // Only auto-allow SQL whose tokens this check can read unambiguously. Comments,
@@ -93,7 +100,8 @@ if (OLD_LOVABLE.has(project)) {
 if (!LIVE.has(project)) process.exit(0); // staging cfhhfnhxdvopedlyrqik or unknown: ask as usual
 
 if (isReadOnly(query)) {
-  out('allow', 'Read-only SQL (AGENT-POLICY: reading is always allowed, Fredrik 2026-11-05).');
+  out('allow', 'Read-only SQL, run as a read-only transaction (AGENT-POLICY: reading is always allowed, Fredrik 2026-11-05).',
+      { ...input.tool_input, query: READ_ONLY_PREFIX + query });
 }
 if (WRITE_WORDS.test(query.toLowerCase()) && !READ_START.test(query.trim().toLowerCase())) {
   out('deny', 'Ad-hoc writes to a live database are not allowed. Write a migration in a PR; the deploy workflow applies it after Fredrik merges.');
