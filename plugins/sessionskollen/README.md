@@ -8,11 +8,21 @@ En panel bredvid chatten som visar alla dina Claude Code-sessioner på ett stäl
 - **Väntar på dig**: sessioner som ställer en fråga, obesvarade `beslut` och `larm` märkta
   `fredrik-behovs` i veirai/hq, och frågor som blev hängande i arkiverade trådar
   de senaste 14 dagarna (dölj dem med "Klar, dölj").
+- **Väntar på din merge**: PR:er i hq, web och landing som inte är utkast, med CI-läget
+  (grön, röd, kör). Gröna räknas som att de väntar på dig; röda och pågående väntar på en
+  agent eller på CI.
 - **Möjligt dubbelarbete**: aktiva sessioner som verkar jobba med samma sak.
 - **Sessionerna** grupperade som Jobbar nu, Klar att granska och Vilar, med modell, kostnad
   och hur fullt minnet (kontexten) är.
 - **Förbrukning** senaste 7 dagarna per modell, och hur mycket rutinjobb som körde Opus.
 - **Spartips** per session.
+
+## Widgeten ovanför skrivrutan
+
+En rad som alltid syns ovanför skrivrutan: `● 3 väntar på dig · 1 att merga · 4 jobbar`, med
+knappen **Visa** som öppnar panelen. Samma rad står i statusraden. Raden hämtar nytt högst var
+tionde minut när panelen är stängd (sessioner på samma maskin delar bilden), och var 90:e
+sekund när panelen är öppen. Den syns först efter första hämtningen.
 
 ## Vad den gör och inte gör
 
@@ -30,7 +40,8 @@ Haikus gissning utifrån titel och status.
 ## Källor
 
 - `claude-code-remote` MCP: `list_sessions`, `get_session`
-- `github` MCP: `list_issues` på veirai/hq (etiketterna `beslut`, `besvarad`, `larm`, `fredrik-behovs`)
+- `github` MCP: `list_issues` på veirai/hq (etiketterna `beslut`, `besvarad`, `larm`, `fredrik-behovs`),
+  `list_pull_requests` och `pull_request_read` (`get_check_runs`) på veirai/hq, web och landing
 
 ## Installation
 

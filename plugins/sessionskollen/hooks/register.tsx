@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Forgotten, Group, HubItem, Overlap, Row, Snapshot, Usage } from '../types'
+import type { Forgotten, Group, HubItem, MergeItem, Overlap, Row, Snapshot, Usage } from '../types'
 
 // Sessionskollen: a pane with every Claude Code session on the account, grouped
 // by what it needs, plus open decisions and alarms from the HQ signal hub and
@@ -25,6 +25,7 @@ const REMOTE = 'claude-code-remote'
 const GITHUB = 'github'
 const CHEAP = 'claude-haiku-5-5'
 const TICK_MS = 90_000
+const BAND_MS = 10 * 60_000
 const SHARED_MAX_AGE_MS = 75_000
 const USAGE_DAYS = 7
 const FORGOTTEN_DAYS = 14
@@ -32,11 +33,12 @@ const MAX_DETAIL_CALLS = 12
 const DAY = 86_400_000
 
 const K_HISTORY = 'history-v1'
-const K_SHARED = 'shared-v2'
+const K_SHARED = 'shared-v3'
 const K_DISMISSED = 'dismissed-v1'
+const MERGE_REPOS = ['hq', 'web', 'landing'] as const
 
 const snapshot = atom({ plugin: 'sessionskollen', key: 'snapshot' } as const, null, {
-  shape: 'snapshot-2',
+  shape: 'snapshot-3',
 })
 const isBusy = atom({ plugin: 'sessionskollen', key: 'isBusy' } as const, false)
 
@@ -75,15 +77,20 @@ type Detail = {
 }
 
 type Issue = { number: number; title: string; created_at: string; labels?: (string | { name: string })[] }
+type Pull = { number: number; title: string; draft?: boolean; created_at: string }
+type CheckRun = { status?: string; conclusion?: string | null }
 
 // Module variables reset on reload; fine for these.
 let isRefreshing = false
 let knownAction = new Set<string>()
 let hasRunOnce = false
+let lastFetchAt = 0
 
 function parseJson(text: string): unknown {
-  const start = text.indexOf('{')
-  const end = text.lastIndexOf('}')
+  // Some tools answer a bare array (list_pull_requests), others an object.
+  const isArray = text.trimStart().startsWith('[')
+  const start = text.indexOf(isArray ? '[' : '{')
+  const end = text.lastIndexOf(isArray ? ']' : '}')
   if (start < 0 || end <= start) return undefined
   try {
     return JSON.parse(text.slice(start, end + 1))
@@ -189,6 +196,60 @@ async function hubItems($: EngineInterface, now: number): Promise<HubItem[]> {
   return out
 }
 
+export function ciOf(runs: CheckRun[]): MergeItem['ci'] {
+  if (runs.length === 0) return 'unknown'
+  const bad = ['failure', 'timed_out', 'cancelled', 'action_required', 'startup_failure']
+  if (runs.some(r => bad.includes(r.conclusion ?? ''))) return 'red'
+  if (runs.some(r => r.status !== 'completed')) return 'running'
+
+  return 'green'
+}
+
+// Open, non-draft PRs in all three repos: a ready PR waits only for Fredrik's
+// "merge". Drafts are agents' work in progress and stay out.
+async function mergeItems($: EngineInterface, now: number): Promise<MergeItem[]> {
+  const out: MergeItem[] = []
+  await Promise.all(
+    MERGE_REPOS.map(async repo => {
+      const pulls = (await callJson($, GITHUB, 'list_pull_requests', {
+        owner: 'veirai',
+        repo,
+        state: 'open',
+        perPage: 50,
+        fields: ['number', 'title', 'draft', 'created_at'],
+      })) as Pull[] | undefined
+      const ready = (Array.isArray(pulls) ? pulls : []).filter(p => !p.draft)
+      await Promise.all(
+        ready.map(async p => {
+          let ci: MergeItem['ci'] = 'unknown'
+          try {
+            const res = (await callJson($, GITHUB, 'pull_request_read', {
+              method: 'get_check_runs',
+              owner: 'veirai',
+              repo,
+              pullNumber: p.number,
+              perPage: 100,
+            })) as { check_runs?: CheckRun[] } | undefined
+            ci = ciOf(res?.check_runs ?? [])
+          } catch {
+            // CI unknown is shown as such, the PR still lists
+          }
+          out.push({
+            repo,
+            number: p.number,
+            title: p.title,
+            ci,
+            ageDays: Math.max(0, Math.floor((now - Date.parse(p.created_at)) / DAY)),
+          })
+        }),
+      )
+    }),
+  )
+  const order: Record<MergeItem['ci'], number> = { green: 0, running: 1, unknown: 2, red: 3 }
+
+  return out.sort((a, b) => order[a.ci] - order[b.ci] || b.ageDays - a.ageDays)
+}
+
 function usageFrom(history: History, now: number): Usage {
   const cutoff = new Date(now - USAGE_DAYS * DAY).toISOString().slice(0, 10)
   const by = new Map<string, { usd: number; count: number }>()
@@ -228,10 +289,14 @@ async function summarise(
   $: EngineInterface,
   rows: Row[],
   hub: HubItem[],
+  merges: MergeItem[],
   forgotten: Forgotten[],
 ): Promise<{ summary: string; overlaps: Overlap[] }> {
-  if (rows.length === 0 && hub.length === 0) return { summary: 'Inga aktiva sessioner just nu.', overlaps: [] }
+  if (rows.length === 0 && hub.length === 0 && merges.length === 0) {
+    return { summary: 'Inga aktiva sessioner just nu.', overlaps: [] }
+  }
   const lines = [
+    ...merges.map(m => `PR ${m.repo}#${m.number} "${m.title}" klar för Fredriks merge, CI ${CI_LABEL[m.ci]}`),
     ...rows.map(
       r => `SESSION [${r.group}] "${r.title}": ${r.doing || 'ingen status'}${r.needs ? ` (frågar Fredrik: ${r.needs})` : ''}`,
     ),
@@ -395,11 +460,17 @@ async function refresh($: EngineInterface, force = false) {
       .filter(f => f.question.length > 0 && !/arkiver|archive/i.test(f.question))
 
     let hub: HubItem[] = []
-    let hubError = ''
+    let merges: MergeItem[] = []
+    const errors: string[] = []
     try {
       hub = await hubItems($, now)
     } catch {
-      hubError = 'HQ-ärenden kunde inte hämtas.'
+      errors.push('HQ-ärenden kunde inte hämtas.')
+    }
+    try {
+      merges = await mergeItems($, now)
+    } catch {
+      errors.push('PR:er kunde inte hämtas.')
     }
 
     const order: Record<Group, number> = { action: 0, working: 1, review: 2, idle: 3 }
@@ -408,24 +479,26 @@ async function refresh($: EngineInterface, force = false) {
     const fingerprint = [
       ...rows.map(r => `${r.id}:${r.group}:${r.doing}:${r.needs}`),
       ...hub.map(h => `${h.kind}${h.number}:${h.isForFredrik}`),
+      ...merges.map(m => `${m.repo}${m.number}:${m.ci}`),
       ...forgotten.map(f => f.id),
     ].join('|')
     const prev = shared?.snapshot
     const { summary, overlaps } =
       shared && shared.fingerprint === fingerprint && prev
         ? { summary: prev.summary, overlaps: prev.overlaps }
-        : await summarise($, rows, hub, forgotten)
+        : await summarise($, rows, hub, merges, forgotten)
 
     const snap: Snapshot = {
       at: now,
       rows,
       hub,
+      merges,
       forgotten,
       overlaps,
       summary,
       usage: usageFrom(history, now),
       rateLimit,
-      error: hubError,
+      error: errors.join(' '),
     }
     await $.store.set(K_SHARED, { at: now, fingerprint, snapshot: snap } satisfies Shared)
     await publish($, snap)
@@ -438,6 +511,7 @@ async function refresh($: EngineInterface, force = false) {
             at: 0,
             rows: [],
             hub: [],
+            merges: [],
             forgotten: [],
             overlaps: [],
             summary: '',
@@ -450,6 +524,19 @@ async function refresh($: EngineInterface, force = false) {
     isRefreshing = false
     await update($, isBusy, () => false)
   }
+}
+
+const CI_LABEL: Record<MergeItem['ci'], string> = {
+  green: 'grön',
+  red: 'röd',
+  running: 'kör',
+  unknown: 'okänd',
+}
+const CI_COLOR: Record<MergeItem['ci'], string> = { green: 'green', red: 'red', running: 'yellow', unknown: 'gray' }
+
+/** PRs Fredrik can merge now: green or without checks. Red and running ones wait on an agent or CI. */
+export function mergeable(snap: Snapshot) {
+  return (snap.merges ?? []).filter(m => m.ci === 'green' || m.ci === 'unknown')
 }
 
 function actionCount(snap: Snapshot) {
@@ -466,6 +553,7 @@ async function publish($: EngineInterface, snap: Snapshot) {
   const waiting = [
     ...snap.rows.filter(r => r.group === 'action').map(r => ({ id: r.id, title: r.title })),
     ...snap.hub.filter(h => h.isForFredrik).map(h => ({ id: `hq#${h.number}`, title: h.title })),
+    ...mergeable(snap).map(m => ({ id: `${m.repo}#${m.number}`, title: `merga ${m.repo}#${m.number}` })),
   ]
   const fresh = waiting.filter(w => !knownAction.has(w.id))
   if (hasRunOnce && fresh.length > 0) {
@@ -474,8 +562,15 @@ async function publish($: EngineInterface, snap: Snapshot) {
   knownAction = new Set(waiting.map(w => w.id))
   hasRunOnce = true
 
+  $.ui.status(bandText(snap))
+}
+
+/** One line for the status line and the band above the prompt. */
+export function bandText(snap: Snapshot) {
   const working = snap.rows.filter(r => r.group === 'working').length
-  $.ui.status(`${working} jobbar · ${actionCount(snap)} väntar på dig`)
+  const toMerge = mergeable(snap).length
+
+  return `${actionCount(snap)} väntar på dig · ${toMerge} att merga · ${working} jobbar`
 }
 
 async function dismiss($: EngineInterface, id: string) {
@@ -502,6 +597,11 @@ function ago(now: number, at: number) {
   return s < 60 ? 'nyss' : `${Math.round(s / 60)} min sedan`
 }
 
+async function openPane($: EngineInterface) {
+  await $.ui.open({ id: PANE, title: 'Sessionskollen' })
+  void refresh($)
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
@@ -511,9 +611,15 @@ export const register: Register = on => {
     // The pane is opened by /sessioner, not here: with the mod in every session
     // it would otherwise pop up everywhere. The timer only fetches while the
     // pane is shown.
+    // With the pane closed, the band above the prompt still needs numbers:
+    // fetch then at most every BAND_MS (sessions on one machine share it).
     $.clock.every(TICK_MS, () => {
       void (async () => {
-        if (await isPaneShown($)) await refresh($)
+        const now = await $.clock.now()
+        if ((await isPaneShown($)) || now - lastFetchAt >= BAND_MS) {
+          lastFetchAt = now
+          await refresh($)
+        }
       })()
     })
 
@@ -521,10 +627,25 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'sessioner' }, async $ => {
-    await $.ui.open({ id: PANE, title: 'Sessionskollen' })
-    void refresh($)
+    await openPane($)
 
     return { text: 'Sessionskollen är öppen.' }
+  })
+
+  // The small widget: one line above the prompt, always in view. Press it for the pane.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const snap = await read($, snapshot)
+    if (e.props.hasSurvey || !snap || snap.at === 0) return next(e)
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const waiting = actionCount(snap) + mergeable(snap).length
+
+    return (
+      <Box flexDirection="row" gap="sm">
+        <Text color={waiting > 0 ? 'red' : 'green'}>{waiting > 0 ? '●' : '✓'}</Text>
+        <Text>{bandText(snap)}</Text>
+        <Button key="open-pane" label="Visa" plain onPress={() => void openPane($)} />
+      </Box>
+    )
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
@@ -546,6 +667,7 @@ export const register: Register = on => {
       .filter(x => x.rows.length > 0)
     const hubMine = snap.hub.filter(h => h.isForFredrik)
     const hubAgents = snap.hub.filter(h => !h.isForFredrik)
+    const merges = snap.merges ?? []
     const u = snap.usage
     const tips = snap.rows.filter(r => r.tip)
     const waiting = actionCount(snap)
@@ -582,6 +704,22 @@ export const register: Register = on => {
               <Button key={`fx-${f.id}`} label="Klar, dölj" plain onPress={() => void dismiss($, f.id)} />
             </Box>
           ))}
+        </Box>
+
+        <Box flexDirection="column">
+          <Text bold color={mergeable(snap).length > 0 ? 'red' : 'green'}>
+            Väntar på din merge ({mergeable(snap).length})
+          </Text>
+          {merges.length === 0 && <Text dimColor>  Inga PR:er klara i hq, web eller landing.</Text>}
+          {merges.map(m => (
+            <Text key={`pr-${m.repo}-${m.number}`} wrap="wrap">
+              {'  '}
+              <Text color={CI_COLOR[m.ci]}>CI {CI_LABEL[m.ci]}</Text> {m.repo}#{m.number}: {m.title} ({m.ageDays} d)
+            </Text>
+          ))}
+          {merges.some(m => m.ci === 'red' || m.ci === 'running') && (
+            <Text dimColor wrap="wrap">  Röda och pågående väntar på en agent eller på CI, inte på dig.</Text>
+          )}
         </Box>
 
         {snap.overlaps.length > 0 && (
