@@ -18,6 +18,13 @@ panelen där appen kan visa den (Claude-appen ritar inte panelen för alla sessi
 - **Förbrukning** senaste 7 dagarna per modell, och hur mycket rutinjobb som körde Opus.
 - **Spartips** per session.
 
+## Agera: svara med knappar
+
+`/sessionskollen:agera` (skriv "agera" i kommandomenyn) gör om samma lista till frågekort med en rekommendation, som du trycker på:
+vilka gröna PR:er som ska mergas, och svar på frågor från andra sessioner och på
+`beslut`-ärenden. Claude gör sedan det du valde: mergar en PR i taget, skickar ditt svar
+till sessionen som frågade, eller kommenterar beslutet och sätter `besvarad`.
+
 ## Widgeten ovanför skrivrutan
 
 En rad som alltid syns ovanför skrivrutan: `● 3 väntar på dig · 1 att merga · 4 jobbar`, med

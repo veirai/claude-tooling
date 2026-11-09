@@ -642,6 +642,8 @@ export function textOverview(snap: Snapshot): string {
     for (const o of snap.overlaps) lines.push(`- "${clean(o.a)}" och "${clean(o.b)}": ${clean(o.why, 80)}`)
   }
 
+  lines.push('', 'Skriv /sessionskollen:agera för att svara med knappar: merga, svara sessionerna och besluten.')
+
   return lines.join('\n')
 }
 
