@@ -1,0 +1,15 @@
+# Dependabot: automatiska uppdaterings-PR:er (Fredrik 2026-11-09, tråden "Håll verktyg och plugins uppdaterade").
+# Samma upplägg som veirai/web. Inget mergas utan Fredriks ja.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Stockholm"
+    open-pull-requests-limit: 3
+    labels:
+      - "ci"
+      - "automated"
