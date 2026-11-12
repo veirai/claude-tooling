@@ -180,6 +180,7 @@ done
 # and execute_sql goes through supabase-read-guard.mjs, which allows provably
 # read-only SQL on Web/HQ/Landing, refuses writes and the old Lovable projects, and
 # leaves everything else (staging, unclear queries) to the normal prompt.
+# The guard also covers the UUID-named form of the connector (see GUARD_MATCHER).
 GUARD="$HOME/.claude/hooks/supabase-read-guard.mjs"
 mkdir -p "$HOME/.claude/hooks"
 if [ -f "$SCRIPT_DIR/supabase-read-guard.mjs" ]; then
@@ -189,11 +190,16 @@ else
     || log "WARNING: could not fetch supabase-read-guard.mjs (SQL reads will still ask)"
 fi
 GUARD_CMD="node $GUARD"
+# Cloud sessions name the connector either "Supabase" or by a UUID
+# (mcp__53bcef79-…__execute_sql). Allow rules can't wildcard the server part, so the
+# guard matches both forms and makes the call itself (2026-11-12). Re-writing the
+# entry each run moves older installs off the readable-name-only matcher.
+GUARD_MATCHER='mcp__.*__(execute_sql|list_tables|list_extensions|list_migrations|list_edge_functions|get_edge_function|query_logs|get_logs|get_advisors|get_project|get_project_url|list_projects|list_organizations|get_organization|list_branches|search_docs|generate_typescript_types|apply_migration|deploy_edge_function)'
 SUPABASE_READ_TOOLS='["mcp__Supabase__list_tables","mcp__Supabase__list_extensions","mcp__Supabase__list_migrations","mcp__Supabase__list_edge_functions","mcp__Supabase__get_edge_function","mcp__Supabase__query_logs","mcp__Supabase__get_advisors","mcp__Supabase__get_project","mcp__Supabase__get_project_url","mcp__Supabase__list_projects","mcp__Supabase__list_organizations","mcp__Supabase__get_organization","mcp__Supabase__list_branches","mcp__Supabase__search_docs","mcp__Supabase__generate_typescript_types"]'
-if [ -f "$GUARD" ] && jq --arg c "$GUARD_CMD" --argjson r "$SUPABASE_READ_TOOLS" \
+if [ -f "$GUARD" ] && jq --arg c "$GUARD_CMD" --arg m "$GUARD_MATCHER" --argjson r "$SUPABASE_READ_TOOLS" \
     '.permissions.allow = (((.permissions.allow // []) + $r) | unique)
-     | if ([.hooks.PreToolUse[]?.hooks[]?.command] | index($c)) then .
-       else .hooks.PreToolUse = ((.hooks.PreToolUse // []) + [{"matcher":"mcp__Supabase__execute_sql","hooks":[{"type":"command","command":$c}]}]) end' \
+     | .hooks.PreToolUse = ([(.hooks.PreToolUse // [])[] | select(([.hooks[]?.command] | index($c)) | not)]
+         + [{"matcher":$m,"hooks":[{"type":"command","command":$c}]}])' \
     "$USER_SETTINGS" > "${USER_SETTINGS}.tmp" && mv "${USER_SETTINGS}.tmp" "$USER_SETTINGS"; then
   log "Supabase reads allowed without prompts (read guard on execute_sql)"
 else

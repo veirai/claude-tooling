@@ -176,7 +176,7 @@ Print this reminder table:
 | Need to find an existing service/edge/tool | `service-index-lookup` |
 | New database migration | `create-migration` |
 | Shipping a change | Draft PR → CI green → Fredrik writes "merge". Backend deploys run from GitHub workflows (HQ `supabase-deploy.yml`, Web release train, Landing `supabase-deploy.yml`). Never a Sofia request or Lovable Publish. |
-| Reading live data | HQ: `mcp__Supabase__execute_sql` on `kvzzftmdnonpzjvjkfwr`. Web: only with Fredrik's explicit ok in the thread. |
+| Reading live data | `execute_sql` and the read tools on Web `ovwioezbsqencnrplpck`, HQ `kvzzftmdnonpzjvjkfwr` or Landing `uxssabiwybfdzjdiiewd`, no question needed (Fredrik 2026-11-05). `supabase-read-guard.mjs` approves reads and refuses writes, whether the connector is called `Supabase` or a UUID. Staging still asks. |
 | Need a real decision from Fredrik | `decision-queue` (`beslut` issue) |
 | Overview of all sessions, what waits for Fredrik, where credits go | `/sessioner` (Sessionskollen pane) |
 | Fredrik has to click something in a console | `guided-handoff` |

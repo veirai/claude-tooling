@@ -1,5 +1,16 @@
 #!/usr/bin/env node
-// PreToolUse hook for mcp__Supabase__execute_sql (Fredrik 2026-11-08).
+// PreToolUse hook for the Supabase MCP tools (Fredrik 2026-11-08, widened 2026-11-12).
+//
+// Cloud sessions sometimes expose the same Supabase connector under its readable name
+// (mcp__Supabase__execute_sql) and sometimes under a UUID name
+// (mcp__53bcef79-e99e-48ae-a6e3-8559d4c9bfea__execute_sql). Permission rules can't
+// wildcard the server part, so this hook (matcher `mcp__.*__<tool>`) makes the call
+// for both forms:
+//
+//   read-only tools (list_tables, get_advisors …) -> allow, unless the project is an
+//                                                    old Lovable one (deny) or staging/
+//                                                    unknown (no decision)
+//   apply_migration, deploy_edge_function          -> deny (only a PR + deploy workflow)
 //
 // AGENT-POLICY "Reading is always allowed (Fredrik 2026-11-05)": read-only SQL against
 // Web, HQ and Landing needs no question. Writes go only via migrations in a PR, so an
@@ -38,6 +49,12 @@ const SAFE_CALLS = new Set(`
   percentile_disc mode stddev variance bool_and bool_or every row_number rank dense_rank ntile lag lead first_value last_value
   pg_size_pretty pg_total_relation_size pg_relation_size pg_database_size pg_column_size pg_typeof has_table_privilege
   obj_description col_description format_type current_setting version
+  pg_get_functiondef pg_get_function_arguments pg_get_function_identity_arguments pg_get_function_result
+  pg_get_triggerdef pg_get_viewdef pg_get_indexdef pg_get_constraintdef pg_get_ruledef pg_get_expr
+  pg_get_userbyid pg_get_serial_sequence pg_get_partkeydef pg_get_statisticsobjdef
+  to_regclass to_regproc to_regprocedure to_regtype to_regrole to_regnamespace quote_ident quote_literal
+  has_schema_privilege has_function_privilege has_column_privilege has_any_column_privilege pg_has_role
+  string_to_array array_position array_remove array_cat array_append
 `.split(/\s+/).filter(Boolean));
 
 function out(decision, reason, updatedInput) {
@@ -83,22 +100,46 @@ function isReadOnly(sql) {
   return true;
 }
 
+// Server part: the readable name or a connector UUID. Nothing else is touched.
+const TOOL = /^mcp__(Supabase|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})__([a-z_]+)$/;
+// Supabase MCP tools that only read. Those with a project_id go through the project check.
+const READ_TOOLS = new Set([
+  'list_tables', 'list_extensions', 'list_migrations', 'list_edge_functions', 'get_edge_function',
+  'query_logs', 'get_logs', 'get_advisors', 'get_project', 'get_project_url', 'list_projects',
+  'list_organizations', 'get_organization', 'list_branches', 'search_docs', 'generate_typescript_types',
+]);
+const NEVER = new Set(['apply_migration', 'deploy_edge_function']);
+
 let input;
 try {
   input = JSON.parse(readFileSync(0, 'utf8'));
 } catch {
   process.exit(0); // can't read the call: no decision, normal prompt
 }
-if (input.tool_name !== 'mcp__Supabase__execute_sql') process.exit(0);
-
+const m = TOOL.exec(String(input.tool_name ?? ''));
+if (!m) process.exit(0);
+const tool = m[2];
+const hasProject = input.tool_input && 'project_id' in input.tool_input;
 const project = String(input.tool_input?.project_id ?? '');
-const query = String(input.tool_input?.query ?? '');
 
-if (OLD_LOVABLE.has(project)) {
+if (NEVER.has(tool)) {
+  out('deny', 'Migrations and edge functions go live only through a PR and the deploy workflow after Fredrik merges (AGENT-POLICY). Never by hand.');
+}
+if (hasProject && OLD_LOVABLE.has(project)) {
   out('deny', 'Old Lovable project: its database was deleted 2026-11-02 (hq#766). Never read it as live.');
 }
+
+if (READ_TOOLS.has(tool)) {
+  if (!hasProject || LIVE.has(project)) {
+    out('allow', 'Read-only Supabase tool (AGENT-POLICY: reading is always allowed, Fredrik 2026-11-05).');
+  }
+  process.exit(0); // staging cfhhfnhxdvopedlyrqik or unknown project: ask as usual
+}
+
+if (tool !== 'execute_sql') process.exit(0);
 if (!LIVE.has(project)) process.exit(0); // staging cfhhfnhxdvopedlyrqik or unknown: ask as usual
 
+const query = String(input.tool_input?.query ?? '');
 if (isReadOnly(query)) {
   out('allow', 'Read-only SQL, run as a read-only transaction (AGENT-POLICY: reading is always allowed, Fredrik 2026-11-05).',
       { ...input.tool_input, query: READ_ONLY_PREFIX + query });
