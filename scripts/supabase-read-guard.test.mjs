@@ -62,7 +62,8 @@ for (const server of NAMES) {
     assert.equal(decide(`mcp__${server}__list_tables`, { project_id: WEB, schemas: ['public'] }).decision, 'allow');
     assert.equal(decide(`mcp__${server}__get_advisors`, { project_id: HQ, type: 'security' }).decision, 'allow');
     assert.equal(decide(`mcp__${server}__query_logs`, { project_id: LANDING }).decision, 'allow');
-    assert.equal(decide(`mcp__${server}__list_projects`, {}).decision, 'allow');
+    // Without a project the UUID form can't prove it's Supabase, so it asks.
+    assert.equal(decide(`mcp__${server}__list_projects`, {}).decision, server === 'Supabase' ? 'allow' : 'none');
     assert.equal(decide(`mcp__${server}__list_tables`, { project_id: STAGING }).decision, 'none');
     assert.equal(decide(`mcp__${server}__list_tables`, { project_id: OLD }).decision, 'deny');
   });
@@ -80,4 +81,5 @@ for (const server of NAMES) {
 test('other MCP servers are ignored', () => {
   assert.equal(decide('mcp__PostHog__execute_sql', { project_id: WEB, query: 'select 1' }).decision, 'none');
   assert.equal(decide('mcp__HQ_ny__list_tables', { project_id: WEB }).decision, 'none');
+  assert.equal(decide('mcp__5234b644-0000-4000-8000-000000000000__search_docs', { query: 'x' }).decision, 'none');
 });

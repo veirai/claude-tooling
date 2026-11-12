@@ -130,7 +130,12 @@ if (hasProject && OLD_LOVABLE.has(project)) {
 }
 
 if (READ_TOOLS.has(tool)) {
-  if (!hasProject || LIVE.has(project)) {
+  // Under a UUID name we can't tell from the name alone that the connector is
+  // Supabase, so only a call that names one of our own projects is approved
+  // (security review 2026-11-12). Pinning the exact UUIDs isn't an option: they
+  // change between sessions, which is the problem this guard exists to fix.
+  const readable = m[1] === 'Supabase';
+  if (LIVE.has(project) || (readable && !hasProject)) {
     out('allow', 'Read-only Supabase tool (AGENT-POLICY: reading is always allowed, Fredrik 2026-11-05).');
   }
   process.exit(0); // staging cfhhfnhxdvopedlyrqik or unknown project: ask as usual
